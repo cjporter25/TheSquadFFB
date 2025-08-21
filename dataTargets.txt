@@ -1,0 +1,8 @@
+| Source                                                            | Method                  | Notes                                                        |
+| ----------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------ |
+| [Pro Football Reference](https://www.pro-football-reference.com/) | Scrape                  | Historical & weekly player stats. Easily parseable tables.   |
+| [ESPN](https://www.espn.com/nfl/stats)                            | Scrape/API (unofficial) | Has position-by-week stats; slightly more dynamic.           |
+| [FantasyPros](https://www.fantasypros.com/nfl/reports/)           | Scrape                  | Excellent for fantasy trends and matchup data.               |
+| [Sleeper API](https://api.sleeper.app/v1/)                        | Public API              | Fantasy league and player info (unofficial but very usable). |
+| [MySportsFeeds](https://www.mysportsfeeds.com/)                   | API                     | Free trial; good fantasy stat access.                        |
+| [TheSportsDB](https://www.thesportsdb.com/)                       | API                     | General team/player info.                                    |
