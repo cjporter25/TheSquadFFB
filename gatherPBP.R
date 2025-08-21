@@ -31,6 +31,24 @@ for (year in seasons) {
 }
 
 # === Close DB connection ===
-dbDisconnect(conn)
+# dbDisconnect(conn)
 
 message("✅ All seasons loaded and saved successfully.")
+
+source("query_utils.R")
+
+# conn <- connect_db()
+
+# Example: list teams
+teams <- get_teams_from_season(conn, 2023)
+print(teams)
+
+# Example: all 4th down passes by PHI
+plays <- get_team_4th_down_passes(conn, 2023, "PHI")
+head(plays)
+
+# Example: distribution of play types for KC
+summary <- get_play_type_counts(conn, 2022, "KC")
+print(summary)
+
+dbDisconnect(conn)
