@@ -13,7 +13,8 @@ vikings_2024 <- dbGetQuery(conn, "
     passer_player_name,
     passing_yards,
     receiver_player_name,
-    receiving_yards
+    receiving_yards,
+    complete_pass
   FROM pbp_2024
   WHERE posteam = 'MIN' AND play_type = 'pass' AND game_id = '2024_01_MIN_NYG'
   ORDER BY game_id
@@ -25,33 +26,30 @@ dbGetQuery(conn, "
 
 nrow(vikings_2024)
 
+# Create a direct quick subset
+completed_passes <- subset(vikings_2024, complete_pass == 1)
+
 # === Create Yardage Buckets ===
-vikings_2024$yardage_group <- cut(
-  vikings_2024$yards_gained,
-  breaks = c(-Inf, 10, 20, Inf),
-  labels = c("short_pass", "mid_pass", "long_pass"),
+completed_passes$yardage_group <- cut(
+  completed_passes$yards_gained,
+  breaks = c(-Inf, 5, 10, 20, Inf),
+  labels = c("very_short", "short_pass", "mid_pass", "long_pass"),
   right = FALSE  # So 10 goes into "10_20"
 )
 
 # === Preview Bucket Counts ===
-print(table(vikings_2024$yardage_group))
+print(table(completed_passes$yardage_group))
 
 
 dbDisconnect(conn)
 
-# Preview the result (only 6 rows)
-# head(vikings_2024)
+# Print all rows of a given query
+print_all_rows(completed_passes)
 
-# Print first 20
-#print(vikings_2024[1:30, ])
+# To confirm all necessary column names are there
+names(completed_passes)
 
-#print(vikings_2024[1:nrow(vikings_2024), ])
 
-print_all_rows(vikings_2024)
-# Print first 20 but limit the view to specific rows
-# print(vikings_2024[1:20, c("play_type", "player_name", "yards_gained")])
-# Print the first 20 but don't print row numbers
-# print(vikings_2024[1:20, ], row.names = FALSE)
 
 
 
