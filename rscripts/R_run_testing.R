@@ -20,11 +20,6 @@ vikings_2024 <- dbGetQuery(conn, "
   ORDER BY game_id
 ")
 
-dbGetQuery(conn, "
-  SELECT COUNT(*) FROM pbp_2024 WHERE posteam = 'MIN' AND play_type = 'pass'
-")
-
-nrow(vikings_2024)
 
 # Create a direct quick subset
 completed_passes <- subset(vikings_2024, complete_pass == 1)
@@ -39,18 +34,12 @@ completed_passes$yardage_group <- cut(
 
 # === Preview Bucket Counts ===
 print(table(completed_passes$yardage_group))
-
-
-dbDisconnect(conn)
-
+# nrow(vikings_2024)
+# To confirm all necessary column names are there
+names(completed_passes)
 # Print all rows of a given query
 print_all_rows(completed_passes)
 
-# To confirm all necessary column names are there
-names(completed_passes)
+print_season_summary(conn, 2024, "MIN")
 
-
-
-
-
-
+dbDisconnect(conn)

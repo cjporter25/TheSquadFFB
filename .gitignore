@@ -7,6 +7,7 @@ instructions.txt
 ts_test.py
 views.py
 nfl_pbp.db
+*.db
 
 app_util.txt
 
