@@ -13,7 +13,7 @@ vikings_2024 <- dbGetQuery(conn, "
     receiver_player_name,
     receiving_yards
   FROM pbp_2024
-  WHERE posteam = 'MIN'
+  WHERE posteam = 'MIN' AND play_type = 'pass'
   ORDER BY game_id
 ")
 
@@ -22,6 +22,17 @@ dbGetQuery(conn, "
 ")
 
 nrow(vikings_2024)
+
+# === Create Yardage Buckets ===
+vikings_2024$yardage_group <- cut(
+  vikings_2024$yards_gained,
+  breaks = c(-Inf, 10, 20, Inf),
+  labels = c("short_pass", "mid_pass", "long_pass"),
+  right = FALSE  # So 10 goes into "10_20"
+)
+
+# === Preview Bucket Counts ===
+print(table(vikings_2024$yardage_group))
 
 
 dbDisconnect(conn)
