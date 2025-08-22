@@ -1,5 +1,7 @@
 library(DBI)
 library(RSQLite)
+# Use "source" when referencing other script files
+source("rscripts/query_utils.R")
 
 conn <- dbConnect(SQLite(), "nfl_pbp.db")
 
@@ -13,7 +15,7 @@ vikings_2024 <- dbGetQuery(conn, "
     receiver_player_name,
     receiving_yards
   FROM pbp_2024
-  WHERE posteam = 'MIN' AND play_type = 'pass'
+  WHERE posteam = 'MIN' AND play_type = 'pass' AND game_id = '2024_01_MIN_NYG'
   ORDER BY game_id
 ")
 
@@ -41,10 +43,16 @@ dbDisconnect(conn)
 # head(vikings_2024)
 
 # Print first 20
-print(vikings_2024[1:20, ])
+#print(vikings_2024[1:30, ])
+
+#print(vikings_2024[1:nrow(vikings_2024), ])
+
+print_all_rows(vikings_2024)
 # Print first 20 but limit the view to specific rows
 # print(vikings_2024[1:20, c("play_type", "player_name", "yards_gained")])
 # Print the first 20 but don't print row numbers
 # print(vikings_2024[1:20, ], row.names = FALSE)
+
+
 
 

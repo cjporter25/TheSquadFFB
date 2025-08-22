@@ -32,4 +32,9 @@ get_play_type_counts <- function(conn, year, team_abbr) {
   dbGetQuery(conn, query)
 }
 
+print_all_rows <- function(df) {
+  options(max.print = nrow(df) * ncol(df))
+  print(df)
+}
+
 
