@@ -1,0 +1,14 @@
+source("rscripts/setup_utils.R")
+
+# === Establish local folder .db file ===
+db_path <- "nfl_pbp.db"
+json_path <- "app_data.json"
+
+# === Connect to (or create) SQLite database if not there ===
+conn <- dbConnect(SQLite(), db_path)
+
+load_and_save_pbp_seasons(conn)
+update_team_list_json(conn, json_path)
+
+# === Close DB connection ===
+dbDisconnect(conn)

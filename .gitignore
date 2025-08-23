@@ -1,6 +1,7 @@
 __pycache__*
 actionlog.txt
 instructions.txt
+app_data.json
 
 /info/*
 
@@ -8,6 +9,7 @@ ts_test.py
 views.py
 nfl_pbp.db
 *.db
+*.json
 
 app_util.txt
 
