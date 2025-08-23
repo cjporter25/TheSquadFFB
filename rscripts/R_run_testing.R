@@ -3,6 +3,8 @@ library(RSQLite)
 # Use "source" when referencing other script files
 source("rscripts/query_utils.R")
 
+
+json_path <- "app_data.json"
 conn <- dbConnect(SQLite(), "nfl_pbp.db")
 
 vikings_2024 <- dbGetQuery(conn, "
@@ -16,7 +18,7 @@ vikings_2024 <- dbGetQuery(conn, "
     receiving_yards,
     complete_pass
   FROM pbp_2024
-  WHERE posteam = 'MIN' AND play_type = 'pass' AND game_id = '2024_01_MIN_NYG'
+  WHERE posteam = 'MIN' AND play_type = 'pass'
   ORDER BY game_id
 ")
 
@@ -28,18 +30,18 @@ completed_passes <- subset(vikings_2024, complete_pass == 1)
 completed_passes$yardage_group <- cut(
   completed_passes$yards_gained,
   breaks = c(-Inf, 5, 10, 20, Inf),
-  labels = c("very_short", "short_pass", "mid_pass", "long_pass"),
+  labels = c("0-4", "5-9", "10-19", "20+"),
   right = FALSE  # So 10 goes into "10_20"
 )
 
 # === Preview Bucket Counts ===
 print(table(completed_passes$yardage_group))
-# nrow(vikings_2024)
+
 # To confirm all necessary column names are there
 names(completed_passes)
 # Print all rows of a given query
-print_all_rows(completed_passes)
+# print_all_rows(completed_passes)
 
-print_season_summary(conn, 2024, "MIN")
+print_all_team_summaries(conn, 2024, json_path)
 
 dbDisconnect(conn)
