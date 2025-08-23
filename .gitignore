@@ -2,6 +2,7 @@ __pycache__*
 actionlog.txt
 instructions.txt
 app_data.json
+.DS_Store
 
 /info/*
 
