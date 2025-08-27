@@ -21,17 +21,8 @@ LICENSE
 .flaskenv
 *.pem
 
-# Created by https://www.toptal.com/developers/gitignore/api/firebase,python,flask
-# Edit at https://www.toptal.com/developers/gitignore?templates=firebase,python,flask
-
-### Firebase ###
-.idea
-**/node_modules/*
-**/.firebaserc
-
-### Firebase Patch ###
-.runtimeconfig.json
-.firebase/
+# Created by https://www.toptal.com/developers/gitignore/api/python,r,flask
+# Edit at https://www.toptal.com/developers/gitignore?templates=python,r,flask
 
 ### Flask ###
 instance/*
@@ -291,4 +282,59 @@ poetry.toml
 # LSP config files
 pyrightconfig.json
 
-# End of https://www.toptal.com/developers/gitignore/api/firebase,python,flask
+### R ###
+# History files
+.Rhistory
+.Rapp.history
+
+# Session Data files
+.RData
+.RDataTmp
+
+# User-specific files
+.Ruserdata
+
+# Example code in package build process
+*-Ex.R
+
+# Output files from R CMD build
+/*.tar.gz
+
+# Output files from R CMD check
+/*.Rcheck/
+
+# RStudio files
+.Rproj.user/
+
+# produced vignettes
+vignettes/*.html
+vignettes/*.pdf
+
+# OAuth2 token, see https://github.com/hadley/httr/releases/tag/v0.3
+.httr-oauth
+
+# knitr and R markdown default cache directories
+*_cache/
+/cache/
+
+# Temporary files created by R markdown
+*.utf8.md
+*.knit.md
+
+# R Environment Variables
+.Renviron
+
+# pkgdown site
+docs/
+
+# translation temp files
+po/*~
+
+# RStudio Connect folder
+rsconnect/
+
+### R.Bookdown Stack ###
+# R package: bookdown caching files
+/*_files/
+
+# End of https://www.toptal.com/developers/gitignore/api/python,r,flask
