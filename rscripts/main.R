@@ -9,7 +9,10 @@ conn <- dbConnect(SQLite(), "nfl_pbp.db")
 
 start <- Sys.time()
 #-------------------------------------------------------------#
-season_passing_yardage_bd(conn, 2024, "MIN")
+# season_passing_yardage_bd(conn, 2022, "MIN")
+# season_passing_yardage_bd(conn, 2023, "MIN")
+# season_passing_yardage_bd(conn, 2024, "MIN")
+print_season_summary(conn, 2024, "MIN")
 # print_game_summary(conn, 2024, "MIN", "2024_01_MIN_NYG")
 
 # print_every_season_summary(conn, "MIN")

@@ -1,5 +1,6 @@
 library(DBI)
 library(RSQLite)
+library(dplyr)
 
 # Standard pull of season pass attempts based on team
 season_total_passes <- function(conn, season, team_abbr) {
@@ -37,6 +38,21 @@ season_passing_yardage_bd <- function(conn, season, team_abbr) {
   )
   result <- dbGetQuery(conn, query)
 
+  # === Combine Yardage Values Based on Completion Status ===
+  result$attempted_yards <- ifelse(
+    result$complete_pass == 1,
+    result$yards_gained, # if complete, use yards_gained
+    result$air_yards # if not complete, user air_yards
+  )
+
+  # === Yardage Buckets for all Pass Attempts ===
+  result$attempted_group <- cut(
+    result$attempted_yards,
+    breaks = c(-Inf, 5, 10, 15, 20, Inf),
+    labels = c("0-4", "5-9", "10-14", "15-19", "20+"),
+    right = FALSE
+  )
+
   # Create a direct quick subset. Need to reference
   #   complete_pass's type from the data frame directly
   completed_passes <- subset(result, result$complete_pass == 1)
@@ -49,19 +65,71 @@ season_passing_yardage_bd <- function(conn, season, team_abbr) {
     labels = c("0-4", "5-9", "10-14", "15-19", "20+"),
     right = FALSE  # So 10 goes into "10_14"
   )
-  # === Create Yardage Buckets ===
+  # === Yardage Buckets for Incomplete Passes ===
   incomplete_passes$yardage_group <- cut(
     incomplete_passes$air_yards,
     breaks = c(-Inf, 5, 10, 15, 20, Inf),
     labels = c("0-4", "5-9", "10-14", "15-19", "20+"),
     right = FALSE  # So 10 goes into "10_20"
   )
+
   # === Preview Bucket Counts ===
-  cat("\nCompleted Pass Distribution:\n")
+  cat("\nAttempted (", season, ") Pass Distribution:\n", sep = "")
+  print(table(result$attempted_group))
+
+  # === Attempted Pass Distribution ===
+  combined_counts <- table(factor(
+    c(completed_passes$yardage_group, incomplete_passes$yardage_group),
+    levels = c("0-4", "5-9", "10-14", "15-19", "20+")
+  ))
+  # === Completion Percentage (efficiency at each depth) ===
+  yardage_groups <- c("0-4", "5-9", "10-14", "15-19", "20+")
+  completed_counts <- table(
+    factor(
+      completed_passes$yardage_group,
+      levels = yardage_groups
+    )
+  )
+
+  completion_rates <- round((completed_counts / combined_counts) * 100, 1)
+  completion_rates[is.na(completion_rates)] <- 0  # Handle 0-attempt cases
+
+  cat(sprintf("\nCompletion %% by Yardage Group:\n"))
+  for (group in names(completion_rates)) {
+    cat(sprintf("  %s: %.1f%%\n", group, completion_rates[group]))
+  }
+
+  cat("\nCompleted (", season, ") Pass Distribution:\n")
   print(table(completed_passes$yardage_group))
 
-  cat("\nIncomplete Pass Distribution:\n")
+  cat("\nIncomplete (", season, ") Pass Distribution:\n")
   print(table(incomplete_passes$yardage_group))
+
+  # === Top Receiver by Yardage Group (Completed Passes) ===
+  #   Take the df of completed_passes and apply (in-order)
+  #   the following transformations
+  top_receivers <- completed_passes %>%
+    # Filter out instances where data is missing (NA)
+    filter(!is.na(.data$receiver_player_name)) %>%
+    # Group by yardage_group and player name
+    #   i.e. all 0-4 hockenson passes are one group, and all
+    #   jefferson 10-14 yard passes are another, etc.
+    group_by(.data$yardage_group, .data$receiver_player_name) %>%
+    # Creates a column for the count of entries per group
+    tally(sort = TRUE) %>%
+    # When n = 1, for each bucket, pick the single receiver with the
+    #   highest number of receptions. When n = 2, the top two, etc.
+    slice_max(n, n = 1) %>%
+    # Remove grouping logic just in case
+    ungroup()
+
+  cat("\nTop Receiver per Yardage Group (Completed Passes):\n")
+  for (i in seq_len(nrow(top_receivers))) {
+    cat("Yardage Group:", as.character(top_receivers$yardage_group[i]),
+        "\n| Player:", top_receivers$receiver_player_name[i],
+        "\n| Completions:", top_receivers$n[i], "\n")
+  }
+
 }
 
 # Get count of incomplete passes based on season and team
@@ -114,16 +182,18 @@ print_season_summary <- function(conn, season, team_abbr) {
   num_passes <- season_total_passes(conn, season, team_abbr)
   num_comp_passes <- season_total_completed_passes(conn, season, team_abbr)
   num_incomp_passes <- season_total_incomplete_passes(conn, season, team_abbr)
+  # Only affects internal numeric precision, not what can be printed
   perc_completed_passes <- round((num_comp_passes / num_passes), 2)
   num_runs <- total_season_runs(conn, season, team_abbr)
   cat(sprintf("Team %s (%d):\n", team_abbr, season)
   )
   cat(sprintf(" Total Attempted Passes: %d\n", num_passes))
   cat(sprintf(" Completed Passes: %d\n", num_comp_passes))
-  season_passing_yardage_bd(conn, season, team_abbr)
   cat(sprintf(" Incomplete Passes: %d\n", num_incomp_passes))
-  cat(sprintf(" Percent Completed: %f\n", perc_completed_passes))
+  # Format the string to print with only 2 digits
+  cat(sprintf(" Percent Completed: %.2f\n", perc_completed_passes))
   cat(sprintf(" Runs: %d\n", num_runs))
+  season_passing_yardage_bd(conn, season, team_abbr)
 }
 
 print_every_season_summary <- function(conn, team_abbr, seasons = 2002:2024) {
