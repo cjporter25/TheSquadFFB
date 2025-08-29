@@ -148,7 +148,8 @@ season_favorite_rec_targets <- function(conn, season, team_abbr) {
   receiver_counts <- as.data.frame(table(result$receiver_player_name))
   # Rename columns
   colnames(receiver_counts) <- c("Name", "Targets")
-  # Order by # of targets and get top 5
+  # Order by # of targets and get top 5. Using "-" to indicate 
+  #   smallest row number first
   top_targets <- receiver_counts[order(-receiver_counts$Targets), ][1:5, ]
   # Return as tibble so the row numbering is 1-5
   as_tibble(top_targets)
