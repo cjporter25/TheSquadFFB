@@ -3,6 +3,7 @@ library(RSQLite)
 #library(dplyr)
 suppressPackageStartupMessages(library(dplyr))
 
+
 # Standard pull of season pass attempts based on team
 season_total_passes <- function(conn, season, team_abbr) {
   table_name <- paste0("pbp_", season)
@@ -12,6 +13,21 @@ season_total_passes <- function(conn, season, team_abbr) {
   )
   result <- dbGetQuery(conn, query)
   result[[1]]
+}
+
+season_get_all_receptions <- function(conn, season, team_abbr) {
+  table_name <- paste0("pbp_", season)
+  query <- sprintf(
+    "SELECT game_id, posteam, play_type, yards_gained,
+    passer_player_name, passing_yards, air_yards,
+    receiver_player_name, receiving_yards, yards_after_catch,
+    complete_pass, incomplete_pass
+    FROM %s WHERE posteam = '%s' AND play_type = 'pass'",
+    table_name, team_abbr
+  )
+
+  result <- dbGetQuery(conn, query)
+  result
 }
 
 # Get count of completed passes based on season and team
@@ -42,16 +58,7 @@ season_total_incomplete_passes <- function(conn, season, team_abbr) {
 }
 
 season_passing_yardage_bd <- function(conn, season, team_abbr) {
-  table_name <- paste0("pbp_", season)
-  query <- sprintf(
-    "SELECT game_id, posteam, play_type, yards_gained,
-    passer_player_name, passing_yards, air_yards,
-    receiver_player_name, receiving_yards, yards_after_catch,
-    complete_pass, incomplete_pass
-    FROM %s WHERE posteam = '%s' AND play_type = 'pass'",
-    table_name, team_abbr
-  )
-  result <- dbGetQuery(conn, query)
+  result <- season_get_all_receptions(conn, season, team_abbr)
 
   # === Combine Yardage Values Based on Completion Status ===
   result$attempted_yards <- ifelse(
@@ -132,6 +139,21 @@ season_passing_yardage_bd <- function(conn, season, team_abbr) {
   )
 }
 
+season_favorite_rec_targets <- function(conn, season, team_abbr) {
+
+  result <- season_get_all_receptions(conn, season, team_abbr)
+  # Filter out rows with NA receiver names (just in case)
+  result <- result[!is.na(result$receiver_player_name), ]
+  # Count # of times a receiver shows up
+  receiver_counts <- as.data.frame(table(result$receiver_player_name))
+  # Rename columns
+  colnames(receiver_counts) <- c("Name", "Targets")
+  # Order by # of targets and get top 5
+  top_targets <- receiver_counts[order(-receiver_counts$Targets), ][1:5, ]
+  # Return as tibble so the row numbering is 1-5
+  as_tibble(top_targets)
+}
+
 
 # Standard pull of season run attempts based on team
 total_season_runs <- function(conn, season, team_abbr) {
@@ -171,8 +193,8 @@ print_season_summary <- function(conn, season, team_abbr) {
   # Only affects internal numeric precision, not what can be printed
   perc_completed_passes <- round((num_comp_passes / num_passes), 2)
   num_runs <- total_season_runs(conn, season, team_abbr)
-
   pass_dists <- season_passing_yardage_bd(conn, season, team_abbr)
+  fav_rec_targets <- season_favorite_rec_targets(conn, season, team_abbr)
 
   cat(sprintf("Team %s (%d):\n", team_abbr, season)
   )
@@ -199,6 +221,11 @@ print_season_summary <- function(conn, season, team_abbr) {
         "\n| Player:", pass_dists$top_receivers$receiver_player_name[i],
         "\n| Completions:", pass_dists$top_receivers$n[i], "\n")
   }
+  cat("\nFavorite Targets (", season, ") :\n")
+  print(fav_rec_targets)
+  cat("\n#1 Target (", season, "): ",
+      as.character(fav_rec_targets$Name[1]), " - ",
+      fav_rec_targets$Targets[1], "\n")
 }
 
 print_every_season_summary <- function(conn, team_abbr, seasons = 2002:2024) {
