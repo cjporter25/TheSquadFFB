@@ -14,6 +14,7 @@ nfl_pbp.db
 
 app_util.txt
 
+.vscode
 .env
 .flaskenv
 *.pem

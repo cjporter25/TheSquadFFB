@@ -34,7 +34,7 @@
 2. **Install pkg-config**
     - `brew install pkg-config`
     - Used to find the Qt include library
-2. **Add the Qt include directory**
+3. **Add the Qt include directory**
     - `pkg-config --cflags Qt6Widgets`
     - Copy the output and remove anything other than the paths themselves
     - /opt/homebrew/lib/QtWidgets.framework/Headers
@@ -55,7 +55,7 @@
 
 ### CMakeLists.txt (What it contained and made work at the start)
 cmake_minimum_required(VERSION 3.27)
-project(TheSquadFFB_GUI VERSION 0.1 LANGUAGES CXX)
+project(TheSquadFFB VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -65,12 +65,12 @@ qt_standard_project_setup()
 
 include_directories(include)
 
-add_executable(TheSquadFFB_GUI
+add_executable(TheSquadFFB
     main.cpp
     src/MainWindow.cpp
     include/MainWindow.h
 )
-target_link_libraries(TheSquadFFB_GUI PRIVATE Qt6::Widgets)
+target_link_libraries(TheSquadFFB PRIVATE Qt6::Widgets)
 
 ### CMakeLists.txt (What it does)
 1. **Declares what source files to compile**
