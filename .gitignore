@@ -14,9 +14,6 @@ nfl_pbp.db
 
 app_util.txt
 
-mysquad_home.html
-LICENSE
-
 .env
 .flaskenv
 *.pem

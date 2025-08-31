@@ -1,7 +1,7 @@
 library(DBI)
 library(RSQLite)
 # Use "source" when referencing other script files
-source("rscripts/query_utils.R")
+source("module_R/query_utils.R")
 
 
 json_path <- "app_data.json"

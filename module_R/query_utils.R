@@ -58,6 +58,7 @@ season_total_incomplete_passes <- function(conn, season, team_abbr) {
 }
 
 season_passing_yardage_bd <- function(conn, season, team_abbr) {
+
   result <- season_get_all_receptions(conn, season, team_abbr)
 
   # === Combine Yardage Values Based on Completion Status ===
