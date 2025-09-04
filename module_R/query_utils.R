@@ -1,8 +1,77 @@
 library(DBI)
 library(RSQLite)
-#library(dplyr)
+library(jsonlite)
+# package contains multiple instances of the same function,
+#   this will prevent the startup messages that indicate this
 suppressPackageStartupMessages(library(dplyr))
 
+assign("JSON_PATH", "app_data.json", envir = .GlobalEnv)
+
+# Retrieve a list of game_ids for every time two teams have played each other
+get_historical_matches <- function(conn, num_years, team_one, team_two) {
+  curr_year <- 2024
+  matches_df <- list()
+  matches_list <- c() # Empty character vector (for final list)
+
+  for (i in 0:(num_years - 1)) {
+    season <- curr_year - i
+    table_name <- paste0("pbp_", season)
+    validate_input(season, team_one, JSON_PATH)
+    validate_input(season, team_two, JSON_PATH)
+    # 1. Find all plays where the posession team is either team one or team two
+    # 2. Group these results by game_id. (At this point, every game where they
+    #    show up wiould be in the result)
+    # 3. Count instances. Only 'MN' equals 1, only 'GB' equals 1, both equals 2
+    #    For the result to be valid, the count must be 2
+    query <- sprintf(
+      "SELECT DISTINCT game_id
+      FROM %s 
+      WHERE (posteam = '%s' AND defteam = '%s')
+      OR (posteam = '%s' and defteam = '%s')",
+      table_name, team_one, team_two, team_two, team_one
+    )
+
+    result <- dbGetQuery(conn, query)
+    # Create a list of data frames by year, then game_id's
+    #   in that year
+    matches_df[[as.character(season)]] <- result
+
+    # If there are matches for that year pull the values
+    #   associated with the game_id column
+    if (nrow(result) > 0) {
+      matches_list <- c(matches_list, result$game_id)
+    }
+  }
+  # Return the full matches list
+  matches_list
+}
+
+validate_input <- function(season, team_abbr, json_path) {
+  # Ensure year is numeric or a string of digits
+  if (!grepl("^\\d{4}$", season)) {
+    # Halts execution and prints a statement
+    stop("Year must be a 4-digit string or numeric value.")
+  }
+
+  # Load the JSON file
+  data <- fromJSON(json_path)
+
+  # Create the lookup key
+  key <- paste0("teams_", season)
+
+  # Check if the key (year) exists in app_data
+  if (!(key %in% names(data))) {
+    stop(paste("Year", season, "is not supported in the dataset."))
+  }
+
+  # Check if the team abbreviation is valid for that year
+  if (!(team_abbr %in% data[[key]])) {
+    stop(paste("Team abbreviation", team_abbr, "is not valid for year", season))
+  }
+
+  # If both checks pass, return TRUE
+  TRUE
+}
 
 # Standard pull of season pass attempts based on team
 season_total_passes <- function(conn, season, team_abbr) {
@@ -15,7 +84,7 @@ season_total_passes <- function(conn, season, team_abbr) {
   result[[1]]
 }
 
-season_get_all_receptions <- function(conn, season, team_abbr) {
+season_get_all_passes <- function(conn, season, team_abbr) {
   table_name <- paste0("pbp_", season)
   query <- sprintf(
     "SELECT game_id, posteam, play_type, yards_gained,
@@ -59,7 +128,7 @@ season_total_incomplete_passes <- function(conn, season, team_abbr) {
 
 season_passing_yardage_bd <- function(conn, season, team_abbr) {
 
-  result <- season_get_all_receptions(conn, season, team_abbr)
+  result <- season_get_all_passes(conn, season, team_abbr)
 
   # === Combine Yardage Values Based on Completion Status ===
   result$attempted_yards <- ifelse(
@@ -109,9 +178,19 @@ season_passing_yardage_bd <- function(conn, season, team_abbr) {
       levels = yardage_groups
     )
   )
+  # === Propensity to Attempt by Yardage Group ===
+  attempt_counts <- table(factor(
+    result$attempted_group,
+    levels = yardage_groups
+  ))
 
+  # Calc completion percentage per yardage group
   completion_rates <- round((completed_counts / combined_counts) * 100, 1)
-  completion_rates[is.na(completion_rates)] <- 0  # Handle 0-attempt cases
+  completion_rates[is.na(completion_rates)] <- 0 
+
+  total_attempts <- sum(attempt_counts)
+  # Calc percentage of each yardage group against the total
+  py_prop <- round((attempt_counts / total_attempts) * 100, 1)
 
   # === Top Receiver by Yardage Group (Completed Passes) ===
   #   Take the df of completed_passes and apply (in-order)
@@ -133,6 +212,7 @@ season_passing_yardage_bd <- function(conn, season, team_abbr) {
 
   list(
     attempted_group = result$attempted_group,
+    py_prop = py_prop,
     completed_passes = completed_passes,
     incomplete_passes = incomplete_passes,
     completion_rates = completion_rates,
@@ -142,7 +222,7 @@ season_passing_yardage_bd <- function(conn, season, team_abbr) {
 
 season_favorite_rec_targets <- function(conn, season, team_abbr) {
 
-  result <- season_get_all_receptions(conn, season, team_abbr)
+  result <- season_get_all_passes(conn, season, team_abbr)
   # Filter out rows with NA receiver names (just in case)
   result <- result[!is.na(result$receiver_player_name), ]
   # Count # of times a receiver shows up
@@ -188,7 +268,12 @@ print_game_summary <- function(conn, season, team_abbr, game_id) {
 # Print a team's season summary of calculated stats for visualizing primary
 #   targets, percentages, etc.
 # Output visuals will increase over time
-print_season_summary <- function(conn, season, team_abbr) {
+print_season_summary <- function(conn, season, team_abbr, json_path) {
+
+  if (!(validate_input(season, team_abbr, json_path))) {
+    stop("Unable to print team summary, issue with input ^")
+  }
+
   num_passes <- season_total_passes(conn, season, team_abbr)
   num_comp_passes <- season_total_completed_passes(conn, season, team_abbr)
   num_incomp_passes <- season_total_incomplete_passes(conn, season, team_abbr)
@@ -208,6 +293,10 @@ print_season_summary <- function(conn, season, team_abbr) {
   cat(sprintf(" Runs: %d\n", num_runs))
   cat("\nAttempted (", season, ") Pass Distribution:\n", sep = "")
   print(table(pass_dists$attempted_group))
+  cat("\nAttempt Propensity by Yardage Group:\n")
+  for (group in names(pass_dists$py_prop)) {
+    cat(sprintf("  %s: %.1f%%\n", group, pass_dists$py_prop[group]))
+  }
   cat("\nCompleted (", season, ") Pass Distribution:\n")
   print(table(pass_dists$completed_passes$yardage_group))
   cat("\nIncomplete (", season, ") Pass Distribution:\n")
@@ -276,3 +365,5 @@ print_all_rows <- function(df) {
   options(max.print = nrow(df) * ncol(df))
   print(df)
 }
+
+
