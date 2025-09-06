@@ -8,7 +8,7 @@ conn <- dbConnect(SQLite(), "nfl_pbp.db")
 start <- Sys.time()
 #-------------------------------------------------------------#
 print_season_summary(conn, 2024, "CLE", json_path)
-get_historical_matches(conn, 10, "CLE", "CIN")
+get_historical_match_stats(conn, 5, "CLE", "CIN")
 #-------------------------------------------------------------#
 end <- Sys.time()
 cat("⏱️ Execution Time:", round(difftime(end, start, units = "secs"), 2),

@@ -19,10 +19,7 @@ get_historical_matches <- function(conn, num_years, team_one, team_two) {
     validate_input(season, team_one, JSON_PATH)
     validate_input(season, team_two, JSON_PATH)
     # 1. Find all plays where the posession team is either team one or team two
-    # 2. Group these results by game_id. (At this point, every game where they
-    #    show up wiould be in the result)
-    # 3. Count instances. Only 'MN' equals 1, only 'GB' equals 1, both equals 2
-    #    For the result to be valid, the count must be 2
+    # 2. Confirm both teams are only either on off/def or def/off
     query <- sprintf(
       "SELECT DISTINCT game_id
       FROM %s 
@@ -45,6 +42,61 @@ get_historical_matches <- function(conn, num_years, team_one, team_two) {
   # Return the full matches list
   matches_list
 }
+get_historical_match_stats <- function(conn, num_years, team_one, team_two) {
+  matches <- get_historical_matches(conn, num_years, team_one, team_two)
+  for (game_id in matches){
+    table_name <- paste0("pbp_", substr(game_id, 1, 4))
+    query <- sprintf(
+      "SELECT game_id, posteam, play_type, yards_gained,
+      rusher_player_name, rushing_yards, rush_attempt,
+      passer_player_name, passing_yards, air_yards, pass_location,
+      receiver_player_name, receiving_yards, yards_after_catch,
+      complete_pass, incomplete_pass
+      FROM %s
+      WHERE game_id = '%s'",
+      table_name, game_id
+    )
+    result <- dbGetQuery(conn, query)
+    cat("Game ID: ", game_id, "\n")
+    team_one_passes <- result %>%
+      filter(.data$posteam == team_one, .data$play_type == "pass")
+    team_one_runs <- result %>%
+      filter(.data$posteam == team_one, .data$play_type == "run")
+    team_two_passes <- result %>%
+      filter(.data$posteam == team_two, .data$play_type == "pass")
+    team_two_runs <- result %>%
+      filter(.data$posteam == team_two, .data$play_type == "run")
+    cat("Team: ", team_one, "\n")
+    calc_match_pass_stats(team_one_passes)
+    calc_match_run_stats(team_one_runs)
+    cat("Team: ", team_two, "\n")
+    calc_match_pass_stats(team_two_passes)
+    calc_match_run_stats(team_two_runs)
+  }
+}
+
+calc_match_pass_stats <- function(passes) {
+  # Count all pass attempts
+  num_attempts <- nrow(passes)
+
+  completed_passes <- subset(passes, passes$complete_pass == 1)
+  num_completed <- nrow(completed_passes)
+  incomplete_passes <- subset(passes, passes$complete_pass == 0)
+  num_incomplete <- nrow(incomplete_passes)
+
+
+  cat("Passes Attempted: ", num_attempts, "\n")
+  cat("Completed Passes ", num_completed, "\n")
+  cat("Incomplete Passes ", num_incomplete, "\n")
+}
+calc_match_run_stats <- function(runs) {
+  # Count all run attempts
+  num_attempts <- nrow(runs)
+
+  cat("Runs Attempted: ", num_attempts, "\n")
+}
+
+
 
 validate_input <- function(season, team_abbr, json_path) {
   # Ensure year is numeric or a string of digits
