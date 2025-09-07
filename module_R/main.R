@@ -7,8 +7,9 @@ json_path <- "app_data.json"
 conn <- dbConnect(SQLite(), "nfl_pbp.db")
 start <- Sys.time()
 #-------------------------------------------------------------#
-print_season_summary(conn, 2024, "CLE", json_path)
-get_historical_match_stats(conn, 5, "CLE", "CIN")
+print_season_summary(conn, 2024, "NYG", json_path)
+print_season_summary(conn, 2023, "NYG", json_path)
+get_historical_match_stats(conn, 5, "NYG", "WAS")
 #-------------------------------------------------------------#
 end <- Sys.time()
 cat("⏱️ Execution Time:", round(difftime(end, start, units = "secs"), 2),

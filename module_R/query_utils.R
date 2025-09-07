@@ -57,7 +57,7 @@ get_historical_match_stats <- function(conn, num_years, team_one, team_two) {
       table_name, game_id
     )
     result <- dbGetQuery(conn, query)
-    cat("Game ID: ", game_id, "\n")
+    cat("      Game ID: ", game_id, "\n")
     team_one_passes <- result %>%
       filter(.data$posteam == team_one, .data$play_type == "pass")
     team_one_runs <- result %>%
@@ -66,12 +66,13 @@ get_historical_match_stats <- function(conn, num_years, team_one, team_two) {
       filter(.data$posteam == team_two, .data$play_type == "pass")
     team_two_runs <- result %>%
       filter(.data$posteam == team_two, .data$play_type == "run")
-    cat("Team: ", team_one, "\n")
-    calc_match_pass_stats(team_one_passes)
+
+    t_one_pass_stats <- calc_match_pass_stats(team_one_passes)
     calc_match_run_stats(team_one_runs)
-    cat("Team: ", team_two, "\n")
-    calc_match_pass_stats(team_two_passes)
+    t_two_pass_stats <- calc_match_pass_stats(team_two_passes)
     calc_match_run_stats(team_two_runs)
+
+    print_side_by_side(team_one, t_one_pass_stats, team_two, t_two_pass_stats)
   }
 }
 
@@ -79,50 +80,45 @@ calc_match_pass_stats <- function(passes) {
   # Count all pass attempts
   num_attempts <- nrow(passes)
 
-  completed_passes <- subset(passes, passes$complete_pass == 1)
-  num_completed <- nrow(completed_passes)
-  incomplete_passes <- subset(passes, passes$complete_pass == 0)
-  num_incomplete <- nrow(incomplete_passes)
+  comp_passes <- subset(passes, passes$complete_pass == 1)
+  num_comp <- nrow(comp_passes)
 
+  total_p_yards <- sum(comp_passes$yards_gained, na.rm = TRUE)
 
-  cat("Passes Attempted: ", num_attempts, "\n")
-  cat("Completed Passes ", num_completed, "\n")
-  cat("Incomplete Passes ", num_incomplete, "\n")
+  incomp_passes <- subset(passes, passes$incomplete_pass == 1)
+  num_incomp <- nrow(incomp_passes)
+
+  perc_complete <- if (num_attempts > 0) {
+    # Format forces a decimal even if it's zero
+    formatC((num_comp / num_attempts) * 100, format = "f", digits = 1)
+  } else {
+    NA
+  }
+  # Return all stats as a named list
+  list(
+    num_attempts = num_attempts,
+    total_p_yards = total_p_yards,
+    num_comp = num_comp,
+    num_incomp = num_incomp,
+    perc_complete = perc_complete
+  )
 }
 calc_match_run_stats <- function(runs) {
   # Count all run attempts
   num_attempts <- nrow(runs)
 
-  cat("Runs Attempted: ", num_attempts, "\n")
+  list(
+    num_attempts = num_attempts
+  )
 }
 
-
-
-validate_input <- function(season, team_abbr, json_path) {
-  # Ensure year is numeric or a string of digits
-  if (!grepl("^\\d{4}$", season)) {
-    # Halts execution and prints a statement
-    stop("Year must be a 4-digit string or numeric value.")
-  }
-
-  # Load the JSON file
-  data <- fromJSON(json_path)
-
-  # Create the lookup key
-  key <- paste0("teams_", season)
-
-  # Check if the key (year) exists in app_data
-  if (!(key %in% names(data))) {
-    stop(paste("Year", season, "is not supported in the dataset."))
-  }
-
-  # Check if the team abbreviation is valid for that year
-  if (!(team_abbr %in% data[[key]])) {
-    stop(paste("Team abbreviation", team_abbr, "is not valid for year", season))
-  }
-
-  # If both checks pass, return TRUE
-  TRUE
+print_side_by_side <- function(team_one_abbr, t_one, team_two_abbr, t_two) {
+  cat("         Team: ", team_one_abbr, team_two_abbr, "\n")
+  cat("Pass Attempts: ", t_one$num_attempts, " ", t_two$num_attempts, "\n")
+  cat("Total P Yards: ", t_one$total_p_yards, "", t_two$total_p_yards, "\n")
+  cat("  Comp Passes: ", t_one$num_comp, " ", t_two$num_comp, "\n")
+  cat("Incomp Passes: ", t_one$num_incomp, " ", t_two$num_incomp, "\n")
+  cat(" Completion %: ", t_one$perc_complete, t_two$perc_complete, "\n")
 }
 
 # Standard pull of season pass attempts based on team
@@ -238,7 +234,7 @@ season_passing_yardage_bd <- function(conn, season, team_abbr) {
 
   # Calc completion percentage per yardage group
   completion_rates <- round((completed_counts / combined_counts) * 100, 1)
-  completion_rates[is.na(completion_rates)] <- 0 
+  completion_rates[is.na(completion_rates)] <- 0
 
   total_attempts <- sum(attempt_counts)
   # Calc percentage of each yardage group against the total
@@ -281,7 +277,7 @@ season_favorite_rec_targets <- function(conn, season, team_abbr) {
   receiver_counts <- as.data.frame(table(result$receiver_player_name))
   # Rename columns
   colnames(receiver_counts) <- c("Name", "Targets")
-  # Order by # of targets and get top 5. Using "-" to indicate 
+  # Order by # of targets and get top 5. Using "-" to indicate
   #   smallest row number first
   top_targets <- receiver_counts[order(-receiver_counts$Targets), ][1:5, ]
   # Return as tibble so the row numbering is 1-5
@@ -375,7 +371,7 @@ print_every_season_summary <- function(conn, team_abbr, seasons = 2002:2024) {
   for (season in seasons) {
     table_name <- paste0("pbp_", season)
 
-    if(table_name %in% dbListTables(conn)) {
+    if (table_name %in% dbListTables(conn)) {
       message(paste0("Season: ", season))
       print_season_summary(conn, season, team_abbr)
       cat("\n------------------------\n")
@@ -418,4 +414,29 @@ print_all_rows <- function(df) {
   print(df)
 }
 
+validate_input <- function(season, team_abbr, json_path) {
+  # Ensure year is numeric or a string of digits
+  if (!grepl("^\\d{4}$", season)) {
+    # Halts execution and prints a statement
+    stop("Year must be a 4-digit string or numeric value.")
+  }
 
+  # Load the JSON file
+  data <- fromJSON(json_path)
+
+  # Create the lookup key
+  key <- paste0("teams_", season)
+
+  # Check if the key (year) exists in app_data
+  if (!(key %in% names(data))) {
+    stop(paste("Year", season, "is not supported in the dataset."))
+  }
+
+  # Check if the team abbreviation is valid for that year
+  if (!(team_abbr %in% data[[key]])) {
+    stop(paste("Team abbreviation", team_abbr, "is not valid for year", season))
+  }
+
+  # If both checks pass, return TRUE
+  TRUE
+}
