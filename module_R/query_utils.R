@@ -68,17 +68,20 @@ get_historical_match_stats <- function(conn, num_years, team_one, team_two) {
       filter(.data$posteam == team_two, .data$play_type == "run")
 
     t_one_pass_stats <- calc_match_pass_stats(team_one_passes)
-    calc_match_run_stats(team_one_runs)
+    t_one_run_stats <- calc_match_run_stats(team_one_runs)
     t_two_pass_stats <- calc_match_pass_stats(team_two_passes)
-    calc_match_run_stats(team_two_runs)
+    t_two_run_stats <- calc_match_run_stats(team_two_runs)
 
     print_side_by_side(team_one, t_one_pass_stats, team_two, t_two_pass_stats)
+
+    t_one_run_stats
+    t_two_run_stats
   }
 }
 
 calc_match_pass_stats <- function(passes) {
   # Count all pass attempts
-  num_attempts <- nrow(passes)
+  num_p_attempts <- nrow(passes)
 
   comp_passes <- subset(passes, passes$complete_pass == 1)
   num_comp <- nrow(comp_passes)
@@ -88,15 +91,15 @@ calc_match_pass_stats <- function(passes) {
   incomp_passes <- subset(passes, passes$incomplete_pass == 1)
   num_incomp <- nrow(incomp_passes)
 
-  perc_complete <- if (num_attempts > 0) {
+  perc_complete <- if (num_p_attempts > 0) {
     # Format forces a decimal even if it's zero
-    formatC((num_comp / num_attempts) * 100, format = "f", digits = 1)
+    formatC((num_comp / num_p_attempts) * 100, format = "f", digits = 1)
   } else {
     NA
   }
   # Return all stats as a named list
   list(
-    num_attempts = num_attempts,
+    num_p_attempts = num_p_attempts,
     total_p_yards = total_p_yards,
     num_comp = num_comp,
     num_incomp = num_incomp,
@@ -107,14 +110,31 @@ calc_match_run_stats <- function(runs) {
   # Count all run attempts
   num_attempts <- nrow(runs)
 
+  # yards_gained & rushing_yards show the same values
+  r_for_gain <- subset(runs, runs$yards_gained > 0)
+  total_r_gain <- sum(r_for_gain$yards_gained, na.rm = TRUE)
+  avg_r_gain <- round(mean(r_for_gain$yards_gained, na.rm = TRUE), 1)
+
+  r_for_loss <- subset(runs, runs$yards_gained <= 0)
+  total_r_loss <- sum(r_for_loss$yards_gained, na.rm = TRUE)
+  avg_r_loss <- round(mean(r_for_loss$yards_gained, na.rm = TRUE), 1)
+
+  total_r_yards <- total_r_gain + total_r_loss
+
+  print(total_r_gain)
+  print(avg_r_gain)
+  print(total_r_loss)
+  print(avg_r_loss)
+  print(total_r_yards)
+
   list(
     num_attempts = num_attempts
   )
 }
 
 print_side_by_side <- function(team_one_abbr, t_one, team_two_abbr, t_two) {
-  cat("         Team: ", team_one_abbr, team_two_abbr, "\n")
-  cat("Pass Attempts: ", t_one$num_attempts, " ", t_two$num_attempts, "\n")
+  cat("         Team: ", team_one_abbr, "", team_two_abbr, "\n")
+  cat("Pass Attempts: ", t_one$num_p_attempts, " ", t_two$num_p_attempts, "\n")
   cat("Total P Yards: ", t_one$total_p_yards, "", t_two$total_p_yards, "\n")
   cat("  Comp Passes: ", t_one$num_comp, " ", t_two$num_comp, "\n")
   cat("Incomp Passes: ", t_one$num_incomp, " ", t_two$num_incomp, "\n")
@@ -140,6 +160,22 @@ season_get_all_passes <- function(conn, season, team_abbr) {
     receiver_player_name, receiving_yards, yards_after_catch,
     complete_pass, incomplete_pass
     FROM %s WHERE posteam = '%s' AND play_type = 'pass'",
+    table_name, team_abbr
+  )
+
+  result <- dbGetQuery(conn, query)
+  result
+}
+
+season_get_all_runs <- function(conn, season, team_abbr) {
+  table_name <- paste0("pbp_", season)
+  query <- sprintf(
+    "SELECT game_id, posteam, play_type, yards_gained,
+    rusher_player_name, rushing_yards, rush_attempt,
+    passer_player_name, passing_yards, air_yards,
+    receiver_player_name, receiving_yards, yards_after_catch,
+    complete_pass, incomplete_pass
+    FROM %s WHERE posteam = '%s' AND play_type = 'run'",
     table_name, team_abbr
   )
 
@@ -360,7 +396,7 @@ print_season_summary <- function(conn, season, team_abbr, json_path) {
         "\n| Player:", pass_dists$top_receivers$receiver_player_name[i],
         "\n| Completions:", pass_dists$top_receivers$n[i], "\n")
   }
-  cat("\nFavorite Targets (", season, ") :\n")
+  cat("\nFavorite Pass Targets (", season, ") :\n")
   print(fav_rec_targets)
   cat("\n#1 Target (", season, "): ",
       as.character(fav_rec_targets$Name[1]), " - ",
