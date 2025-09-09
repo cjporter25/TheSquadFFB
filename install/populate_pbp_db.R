@@ -1,4 +1,4 @@
-source("module_R/setup_utils.R")
+source("install/setup_utils.R")
 
 # === Establish local folder .db file ===
 db_path <- "nfl_pbp.db"

@@ -67,21 +67,18 @@ get_historical_match_stats <- function(conn, num_years, team_one, team_two) {
     team_two_runs <- result %>%
       filter(.data$posteam == team_two, .data$play_type == "run")
 
-    t_one_pass_stats <- calc_match_pass_stats(team_one_passes)
-    t_one_run_stats <- calc_match_run_stats(team_one_runs)
-    t_two_pass_stats <- calc_match_pass_stats(team_two_passes)
-    t_two_run_stats <- calc_match_run_stats(team_two_runs)
+    t_one_p <- calc_match_pass_stats(team_one_passes)
+    t_one_r <- calc_match_run_stats(team_one_runs)
+    t_two_p <- calc_match_pass_stats(team_two_passes)
+    t_two_r <- calc_match_run_stats(team_two_runs)
 
-    print_side_by_side(team_one, t_one_pass_stats, team_two, t_two_pass_stats)
-
-    t_one_run_stats
-    t_two_run_stats
+    print_side_by_side(team_one, t_one_p, t_one_r, team_two, t_two_p, t_two_r)
   }
 }
 
 calc_match_pass_stats <- function(passes) {
   # Count all pass attempts
-  num_p_attempts <- nrow(passes)
+  num_attempts <- nrow(passes)
 
   comp_passes <- subset(passes, passes$complete_pass == 1)
   num_comp <- nrow(comp_passes)
@@ -91,15 +88,15 @@ calc_match_pass_stats <- function(passes) {
   incomp_passes <- subset(passes, passes$incomplete_pass == 1)
   num_incomp <- nrow(incomp_passes)
 
-  perc_complete <- if (num_p_attempts > 0) {
+  perc_complete <- if (num_attempts > 0) {
     # Format forces a decimal even if it's zero
-    formatC((num_comp / num_p_attempts) * 100, format = "f", digits = 1)
+    formatC((num_comp / num_attempts) * 100, format = "f", digits = 1)
   } else {
     NA
   }
   # Return all stats as a named list
   list(
-    num_p_attempts = num_p_attempts,
+    num_attempts = num_attempts,
     total_p_yards = total_p_yards,
     num_comp = num_comp,
     num_incomp = num_incomp,
@@ -121,24 +118,26 @@ calc_match_run_stats <- function(runs) {
 
   total_r_yards <- total_r_gain + total_r_loss
 
-  print(total_r_gain)
-  print(avg_r_gain)
-  print(total_r_loss)
-  print(avg_r_loss)
-  print(total_r_yards)
-
   list(
-    num_attempts = num_attempts
+    num_attempts = num_attempts,
+    total_r_yards = total_r_yards,
+    total_r_gain = total_r_gain,
+    avg_r_gain = avg_r_gain,
+    total_r_loss = total_r_loss,
+    avr_r_loss = avg_r_loss
   )
 }
 
-print_side_by_side <- function(team_one_abbr, t_one, team_two_abbr, t_two) {
+print_side_by_side <- function(team_one_abbr, t_one_p, t_one_r,
+                               team_two_abbr, t_two_p, t_two_r) {
   cat("         Team: ", team_one_abbr, "", team_two_abbr, "\n")
-  cat("Pass Attempts: ", t_one$num_p_attempts, " ", t_two$num_p_attempts, "\n")
-  cat("Total P Yards: ", t_one$total_p_yards, "", t_two$total_p_yards, "\n")
-  cat("  Comp Passes: ", t_one$num_comp, " ", t_two$num_comp, "\n")
-  cat("Incomp Passes: ", t_one$num_incomp, " ", t_two$num_incomp, "\n")
-  cat(" Completion %: ", t_one$perc_complete, t_two$perc_complete, "\n")
+  cat("Pass Attempts: ", t_one_p$num_attempts, " ", t_two_p$num_attempts, "\n")
+  cat("Total P Yards: ", t_one_p$total_p_yards, "", t_two_p$total_p_yards, "\n")
+  cat("  Comp Passes: ", t_one_p$num_comp, " ", t_two_p$num_comp, "\n")
+  cat("Incomp Passes: ", t_one_p$num_incomp, " ", t_two_p$num_incomp, "\n")
+  cat(" Completion %: ", t_one_p$perc_complete, t_two_p$perc_complete, "\n")
+  print("------------------")
+  cat(" Run Attempts: ", t_one_r$num_attempts, " ", t_two_r$num_attempts, "\n")
 }
 
 # Standard pull of season pass attempts based on team

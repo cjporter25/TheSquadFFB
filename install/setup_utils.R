@@ -4,7 +4,7 @@ library(jsonlite)
 library(nflreadr)
 
 # Load from 2002 since that has all of the current teams
-load_and_save_pbp_seasons <- function(conn, seasons = 2002:2024) {
+load_and_save_pbp_seasons <- function(conn, seasons = 2002:2025) {
   # Loop through seasons
   for (year in seasons) {
     table_name <- paste0("pbp_", year)
