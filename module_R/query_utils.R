@@ -7,6 +7,10 @@ suppressPackageStartupMessages(library(dplyr))
 
 assign("JSON_PATH", "app_data.json", envir = .GlobalEnv)
 
+get_player_summary <- function(conn, num_years, name) {
+  
+}
+
 # Retrieve a list of game_ids for every time two teams have played each other
 get_historical_matches <- function(conn, num_years, team_one, team_two) {
   curr_year <- 2024
@@ -57,7 +61,9 @@ get_historical_match_stats <- function(conn, num_years, team_one, team_two) {
       table_name, game_id
     )
     result <- dbGetQuery(conn, query)
-    cat("      Game ID: ", game_id, "\n")
+    message("     #####################")
+    cat("     # ", game_id, " #\n")
+    message("     #####################")
     team_one_passes <- result %>%
       filter(.data$posteam == team_one, .data$play_type == "pass")
     team_one_runs <- result %>%
@@ -77,7 +83,7 @@ get_historical_match_stats <- function(conn, num_years, team_one, team_two) {
 }
 
 calc_match_pass_stats <- function(passes) {
-  # Count all pass attempts
+  # Count all pass attempts (integer)
   num_attempts <- nrow(passes)
 
   comp_passes <- subset(passes, passes$complete_pass == 1)
@@ -134,10 +140,26 @@ print_side_by_side <- function(team_one_abbr, t_one_p, t_one_r,
   cat("Pass Attempts: ", t_one_p$num_attempts, " ", t_two_p$num_attempts, "\n")
   cat("Total P Yards: ", t_one_p$total_p_yards, "", t_two_p$total_p_yards, "\n")
   cat("  Comp Passes: ", t_one_p$num_comp, " ", t_two_p$num_comp, "\n")
-  cat("Incomp Passes: ", t_one_p$num_incomp, " ", t_two_p$num_incomp, "\n")
+  if (single_digit(t_one_p$num_incomp)) {
+    # Print extra space if initial value is a single digit
+    cat("Incomp Passes: ", t_one_p$num_incomp, "  ", t_two_p$num_incomp, "\n")
+  } else {
+    cat("Incomp Passes: ", t_one_p$num_incomp, " ", t_two_p$num_incomp, "\n")
+  }
   cat(" Completion %: ", t_one_p$perc_complete, t_two_p$perc_complete, "\n")
-  print("------------------")
+  message("-----------------------")
   cat(" Run Attempts: ", t_one_r$num_attempts, " ", t_two_r$num_attempts, "\n")
+  if (double_digit(t_one_r$total_r_yards)) {
+    cat("Total R Yards: ", t_one_r$total_r_yards, " ",
+        t_two_r$total_r_yards, "\n")
+  } else {
+    cat("Total R Yards: ", t_one_r$total_r_yards, "",
+        t_two_r$total_r_yards, "\n")
+  }
+  cat(" R Yds Gained: ", t_one_r$total_r_gain, "", t_two_r$total_r_gain, "\n")
+  cat(" Avg R Gained: ", t_one_r$avg_r_gain, "", t_two_r$avg_r_gain, "\n")
+  cat(" Total R Lost: ", t_one_r$total_r_loss, "", t_two_r$total_r_loss, "\n")
+
 }
 
 # Standard pull of season pass attempts based on team
@@ -474,4 +496,18 @@ validate_input <- function(season, team_abbr, json_path) {
 
   # If both checks pass, return TRUE
   TRUE
+}
+
+# Supportive function for printing cleanliness
+#   Creates a scheme that checks whether an incoming value is
+#   a single digit.
+#   Returns TRUE/FALSE. Allows printing functions to account for
+#   the reduced space of a single digit
+single_digit <- function(val) {
+  is.numeric(val) && val %% 1 == 0 && val >= 0 && val <= 9
+}
+
+# Same as single digit but checks for whether it's double digits
+double_digit <- function(val) {
+  is.numeric(val) && val %% 1 == 0 && val >= 10 && val <= 99
 }
