@@ -311,7 +311,7 @@ season_passing_yardage_bd <- function(conn, season, team_abbr) {
     tally(sort = TRUE) %>%
     # When n = 1, for each bucket, pick the single receiver with the
     #   highest number of receptions. When n = 2, the top two, etc.
-    slice_max(n, n = 1) %>%
+    slice_max(n, n = 2) %>%
     # Remove grouping logic just in case
     ungroup()
 

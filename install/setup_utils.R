@@ -2,6 +2,7 @@ library(DBI)
 library(RSQLite)
 library(jsonlite)
 library(nflreadr)
+library(dplyr)
 
 # Load from 2002 since that has all of the current teams
 load_and_save_pbp_seasons <- function(conn, seasons = 2002:2025) {
@@ -19,7 +20,7 @@ load_and_save_pbp_seasons <- function(conn, seasons = 2002:2025) {
     pbp <- load_pbp(year)
     pbp$season <- year  # Add explicit season column
 
-    # Save to SQLite
+    # Save to db
     message(paste0("Writing to table: ", table_name))
     dbWriteTable(conn, table_name, pbp, overwrite = TRUE)
   }
@@ -40,7 +41,7 @@ update_team_list_json <- function(conn, json_path) {
 
   seasons_found <- c()
 
-  # Loop through each PBP table. Ensure the table name matches 
+  # Loop through each PBP table. Ensure the table name matches
   #     the intended schema
   for (table_name in tables) {
     if (grepl("^pbp_\\d{4}$", table_name)) {
@@ -70,4 +71,47 @@ update_team_list_json <- function(conn, json_path) {
   write_json(app_data, json_path, pretty = TRUE, auto_unbox = TRUE)
 
   cat(sprintf("✅ Team list updated in %s\n", json_path))
+}
+
+save_team_pbps <- function(main_conn, team_conn, app_data_path) {
+  # === Load app_data.json ===
+  team_seasons <- fromJSON(app_data_path)
+
+  # === Loop over each season and team in app_data.json ===
+  for (season in names(team_seasons)) {
+    # Extrapolate the year in question from the scheme in app_data
+    #     i.e., if the list is teams_2024, year = 2024
+    year <- gsub("teams_", "", season)
+    table_name <- paste0("pbp_", year)
+
+    if (!dbExistsTable(main_conn, table_name)) {
+      cat("Skipping missing table:", table_name, "\n")
+      next
+    }
+
+    for (team in team_seasons[[season]]) {
+      cat("Processing", team, "for season", year, "\n")
+
+      query <- sprintf(
+        "SELECT *
+        FROM %s
+        WHERE posteam = '%s'
+            OR defteam = '%s'
+            OR game_id LIKE '%%%s%%'",
+        table_name, team, team, team
+      )
+
+      # Get all plays where the team was involved
+      team_data <- dbGetQuery(main_conn, query)
+
+      # Append to table (or create new if doesn't exist)
+      if (dbExistsTable(team_conn, paste0(team, "_pbp"))) {
+        dbAppendTable(team_conn, paste0(team, "_pbp"), team_data)
+      } else {
+        dbWriteTable(team_conn, paste0(team, "_pbp"), team_data)
+      }
+    }
+  }
+
+  cat("✅ Team-specific PBP tables written to nfl_team_pbp.db\n")
 }

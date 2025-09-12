@@ -1,11 +1,19 @@
 import sqlite3
 import pandas as pd
+import numpy as np
 
 CONN = sqlite3.connect("nfl_pbp.db")
 
-def get_player_summary(season, name):
+# Player Important Info
+#   1. Personal Stats (Season)
+#       - Total yards running
+#           - Avg Yds per carry
+#       - Total yards passing
+#           - Average passing yards
+#           - Completed vs. non-completed
+
+def get_player_involved_plays(season, name):
     table = "pbp_" + str(season)
-    print(table)
     query = f"""
         SELECT game_id, posteam, play_type, yards_gained,
         rusher_player_name, rushing_yards, rush_attempt,
@@ -17,7 +25,33 @@ def get_player_summary(season, name):
            OR LOWER(receiver_player_name) LIKE '%' || LOWER(?) || '%'
     """
     result = pd.read_sql_query(query, CONN, params=[name, name])
-    runs = result[result["play_type"] == "run"]
-    passes = result[result["play_type"] == "pass"]
-    return [runs, passes]
+    return result
+
+def get_rb_season_summary(season, name):
+    result = get_player_involved_plays(season, name)
+    run_plays = result[result["play_type"] == "run"]
+    num_r_attempts = len(run_plays)
+    avg_ypc = round(run_plays["yards_gained"].mean(), 2)
+
+    pass_plays = result[result["play_type"] == "pass"]
+    num_p_attempts = len(pass_plays)
+    comp_passes = pass_plays[pass_plays["complete_pass"] == 1]
+    num_comp_p = len(comp_passes)
+    incomp_passes = pass_plays[pass_plays["incomplete_pass"] == 1]
+    num_incomp_p = len(incomp_passes)
+    avg_ypp = round(comp_passes["yards_gained"].mean(), 2)
+    return {"season": season,
+            "name": name, 
+            "num_r_attempts": num_r_attempts, 
+            "avg_ypc": avg_ypc, 
+            "num_p_attempts": num_p_attempts,
+            "num_comp_p": num_comp_p,
+            "num_incomp_p": num_incomp_p, 
+            "avg_ypp": avg_ypp}
+
+def print_rb_season_summary(stats):
+    print("Player: " + stats["name"] + " (" + str(stats["season"]) + ") Summary")
+
+
+
 
