@@ -7,10 +7,6 @@ suppressPackageStartupMessages(library(dplyr))
 
 assign("JSON_PATH", "app_data.json", envir = .GlobalEnv)
 
-get_player_summary <- function(conn, num_years, name) {
-  
-}
-
 # Retrieve a list of game_ids for every time two teams have played each other
 get_historical_matches <- function(conn, num_years, team_one, team_two) {
   curr_year <- 2024
@@ -353,7 +349,7 @@ total_season_runs <- function(conn, season, team_abbr) {
   result[[1]]
 }
 
-print_game_summary <- function(conn, season, team_abbr, game_id) {
+print_game_df <- function(conn, season, team_abbr, game_id) {
   table_name <- paste0("pbp_", season)
   query <- sprintf(
     "SELECT game_id, posteam, play_type, yards_gained,
@@ -365,9 +361,48 @@ print_game_summary <- function(conn, season, team_abbr, game_id) {
     table_name, team_abbr, game_id
   )
   result <- dbGetQuery(conn, query)
-  incomplete <- subset(result, result$incomplete_pass == 1)
   print(result)
-  print(incomplete)
+}
+
+get_season_summary <- function(main_conn, team_conn, season, team_abbr) {
+  table_name <- paste0(team_abbr, "_pbp")
+  query <- sprintf(
+    "SELECT game_id, posteam, defteam, play_type, yards_gained,
+    rusher_player_name, rushing_yards, rush_attempt,
+    passer_player_name, passing_yards, air_yards,
+    receiver_player_name, receiving_yards, yards_after_catch,
+    complete_pass, incomplete_pass
+    FROM %s WHERE season = '%s'",
+    table_name, season
+  )
+  result <- dbGetQuery(team_conn, query)
+  passes <- subset(result, result$play_type == "pass"
+                   & result$posteam == team_abbr)
+  num_p_attempted <- nrow(passes)
+
+  comp_p <- subset(passes, passes$complete_pass == 1)
+  num_comp_p <- nrow(comp_p)
+
+  incomp_p <- subset(passes, passes$incomplete_pass == 1)
+  num_incomp_p <- nrow(incomp_p)
+
+  perc_comp_p <- round((num_comp_p / num_p_attempted) * 100, 1)
+
+  pass_dists <- season_passing_yardage_bd(main_conn, season, team_abbr)
+
+  runs <- subset(result, result$play_type == "run"
+                 & result$posteam == team_abbr)
+  num_r_attempted <- nrow(runs)
+  list(
+    num_p_attempted = num_p_attempted,
+    attempted_group = table(pass_dists$attempted_group),
+    num_comp_p = num_comp_p,
+    comp_group = table(pass_dists$completed_passes$yardage_group),
+    num_incomp_p = num_incomp_p,
+    incomp_group = table(pass_dists$incomplete_passes$yardage_group),
+    perc_comp_p = perc_comp_p,
+    num_r_attempted = num_r_attempted
+  )
 }
 
 # Print a team's season summary of calculated stats for visualizing primary
@@ -465,11 +500,16 @@ print_all_team_summaries <- function(conn, season, json_path) {
   }
 }
 
+calculate_team_ss <- function(conn, ss_conn, json_path) {
+  team_seasons <- fromJSON(json_path)
 
-print_all_rows <- function(df) {
-  options(max.print = nrow(df) * ncol(df))
-  print(df)
+  for (season in names(team_seasons)) {
+    year <- gsub("teams_", "", season)
+  }
+  year
 }
+
+
 
 validate_input <- function(season, team_abbr, json_path) {
   # Ensure year is numeric or a string of digits
@@ -510,4 +550,9 @@ single_digit <- function(val) {
 # Same as single digit but checks for whether it's double digits
 double_digit <- function(val) {
   is.numeric(val) && val %% 1 == 0 && val >= 10 && val <= 99
+}
+
+print_all_rows <- function(df) {
+  options(max.print = nrow(df) * ncol(df))
+  print(df)
 }

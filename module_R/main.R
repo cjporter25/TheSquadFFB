@@ -4,15 +4,17 @@ source("module_R/query_utils.R")
 # Use "source" when referencing other script files
 
 json_path <- "app_data.json"
-conn <- dbConnect(SQLite(), "nfl_pbp.db")
+main_conn <- dbConnect(SQLite(), "nfl_pbp.db")
+team_conn <- dbConnect(SQLite(), "nfl_team_pbp.db")
+ss_conn <- dbConnect(SQLite(), "nfl_team_ss.db")
 start <- Sys.time()
 #-------------------------------------------------------------#
-print_season_summary(conn, 2024, "NYG", json_path)
-#print_season_summary(conn, 2023, "NYG", json_path)
-# get_historical_match_stats(conn, 3, "NYG", "WAS")
-# print_season_summary(conn, 2025, "MIN", json_path)
+print_season_summary(main_conn, 2024, "NYG", json_path)
+get_season_summary(main_conn, team_conn, 2024, "NYG")
 #-------------------------------------------------------------#
 end <- Sys.time()
 cat("⏱️ Execution Time:", round(difftime(end, start, units = "secs"), 2),
     "seconds\n")
-dbDisconnect(conn)
+dbDisconnect(main_conn)
+dbDisconnect(team_conn)
+dbDisconnect(ss_conn)

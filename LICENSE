@@ -19,7 +19,7 @@ These files are provided "AS IS", WITHOUT WARRANTY OF ANY KIND.
 2. Data Analysis Code, Custom Functions, and Outputs
 -------------------------------------------------------------------------------
 
-All data analysis logic—including but not limited to:
+All data analysis logic—including, but not limited to:
 - C modules and functions (`/module_c/` folder),
 - C++ modules and functions (`/module_cpp/` folder),
 - Java modules and functions (`/module_java/` folder),

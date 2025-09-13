@@ -39,6 +39,8 @@ def get_rb_season_summary(season, name):
     num_comp_p = len(comp_passes)
     incomp_passes = pass_plays[pass_plays["incomplete_pass"] == 1]
     num_incomp_p = len(incomp_passes)
+    perc_comp = round((num_comp_p/num_p_attempts), 2)
+    # Average yards per "completed" pass
     avg_ypp = round(comp_passes["yards_gained"].mean(), 2)
     return {"season": season,
             "name": name, 
@@ -47,10 +49,19 @@ def get_rb_season_summary(season, name):
             "num_p_attempts": num_p_attempts,
             "num_comp_p": num_comp_p,
             "num_incomp_p": num_incomp_p, 
+            "perc_comp": perc_comp,
             "avg_ypp": avg_ypp}
 
-def print_rb_season_summary(stats):
-    print("Player: " + stats["name"] + " (" + str(stats["season"]) + ") Summary")
+def print_rb_season_summary(p_stats):
+    print("Player: " + p_stats["name"] + " (" + str(p_stats["season"]) + ") Summary")
+    print("Total Attempted R: " + str(p_stats["num_r_attempts"]))
+    # Total Team attempted runs/player attempted runs
+    print(" Run Target Share: " + "PLACEHOLDER")
+    print("      Average YPC: " + str(p_stats["avg_ypc"]))
+    print("Total Attempted P: " + str(p_stats["num_p_attempts"]))
+    print("  Num Comp Passes: " + str(p_stats["num_comp_p"]))
+    print("Num Incomp Passes: " + str(p_stats["num_incomp_p"]))
+    print(" Perc P Completed: " + str(p_stats["perc_comp"]))
 
 
 
