@@ -10,7 +10,7 @@ ss_conn <- dbConnect(SQLite(), "nfl_team_ss.db")
 start <- Sys.time()
 #-------------------------------------------------------------#
 print_season_summary(main_conn, 2024, "NYG", json_path)
-get_season_summary(main_conn, team_conn, 2024, "NYG")
+get_season_off_summ(main_conn, team_conn, 2024, "NYG")
 #-------------------------------------------------------------#
 end <- Sys.time()
 cat("⏱️ Execution Time:", round(difftime(end, start, units = "secs"), 2),

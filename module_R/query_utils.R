@@ -364,7 +364,7 @@ print_game_df <- function(conn, season, team_abbr, game_id) {
   print(result)
 }
 
-get_season_summary <- function(main_conn, team_conn, season, team_abbr) {
+get_season_off_summ <- function(main_conn, team_conn, season, team_abbr) {
   table_name <- paste0(team_abbr, "_pbp")
   query <- sprintf(
     "SELECT game_id, posteam, defteam, play_type, yards_gained,
@@ -376,12 +376,15 @@ get_season_summary <- function(main_conn, team_conn, season, team_abbr) {
     table_name, season
   )
   result <- dbGetQuery(team_conn, query)
+
+  # ALl designed Pass plays
   passes <- subset(result, result$play_type == "pass"
                    & result$posteam == team_abbr)
   num_p_attempted <- nrow(passes)
 
   comp_p <- subset(passes, passes$complete_pass == 1)
   num_comp_p <- nrow(comp_p)
+  total_comp_p_yds <- sum(comp_p$yards_gained, na.rm = TRUE)
 
   incomp_p <- subset(passes, passes$incomplete_pass == 1)
   num_incomp_p <- nrow(incomp_p)
@@ -390,18 +393,35 @@ get_season_summary <- function(main_conn, team_conn, season, team_abbr) {
 
   pass_dists <- season_passing_yardage_bd(main_conn, season, team_abbr)
 
+  # All designed run plays
   runs <- subset(result, result$play_type == "run"
                  & result$posteam == team_abbr)
+
+  r_for_gain <- subset(runs, runs$yards_gained > 0)
+  num_r_for_gain <- nrow(r_for_gain)
+  total_r_gain <- sum(r_for_gain$yards_gained, na.rm = TRUE)
+
+  r_for_loss <- subset(runs, runs$yards_gained < 0)
+  num_r_for_loss <- nrow(r_for_loss)
+  total_r_loss <- sum(r_for_loss$yards_gained, na.rm = TRUE)
+
   num_r_attempted <- nrow(runs)
+  total_r_yds <- sum(runs$yards_gained, na.rm = TRUE)
   list(
     num_p_attempted = num_p_attempted,
     attempted_group = table(pass_dists$attempted_group),
     num_comp_p = num_comp_p,
     comp_group = table(pass_dists$completed_passes$yardage_group),
     num_incomp_p = num_incomp_p,
+    total_comp_p_yds = total_comp_p_yds,
     incomp_group = table(pass_dists$incomplete_passes$yardage_group),
     perc_comp_p = perc_comp_p,
-    num_r_attempted = num_r_attempted
+    num_r_attempted = num_r_attempted,
+    total_r_yds = total_r_yds,
+    num_r_for_gain = num_r_for_gain,
+    total_r_gain = total_r_gain,
+    num_r_for_loss = num_r_for_loss,
+    total_r_loss = total_r_loss
   )
 }
 
