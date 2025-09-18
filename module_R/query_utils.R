@@ -263,7 +263,7 @@ season_passing_yardage_bd <- function(conn, season, team_abbr) {
     incomplete_passes$air_yards,
     breaks = c(-Inf, 5, 10, 15, 20, Inf),
     labels = c("0-4", "5-9", "10-14", "15-19", "20+"),
-    right = FALSE  # So 10 goes into "10_20"
+    right = FALSE  # So 10 goes into "10_14"
   )
 
   # === Attempted Pass Distribution ===

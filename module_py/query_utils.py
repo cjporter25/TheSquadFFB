@@ -27,24 +27,47 @@ def get_player_involved_plays(season, name):
     result = pd.read_sql_query(query, CONN, params=[name, name])
     return result
 
-def get_rb_yardage_bd(result):
+def get_rb_yardage_bd(passes, comp_passes, incomp_passes, runs):
     # Have to create a deep copy because the incoming data frame
     #   is a visual slice of the original big query, not a copy
-    result = result.copy()
-    result["attempted_yards"] = np.where(
-        result["complete_pass"] == 1,
-        result["yards_gained"],
-        result["air_yards"]
+    passes = passes.copy()
+    comp_passes = comp_passes.copy()
+    incomp_passes = incomp_passes.copy()
+    runs = runs.copy()
+
+    # Create new column in existing data frame to track attempted
+    #   yards regardless of completion
+    passes["attempted_yards"] = np.where(
+        passes["complete_pass"] == 1,
+        passes["yards_gained"],
+        passes["air_yards"]
     )
-    result["attempted_group"] = pd.cut(
-        result["attempted_yards"],
+    passes["buckets"] = pd.cut(
+        passes["attempted_yards"],
         bins=[-np.inf, 5, 10, 15, 20, np.inf],
         labels=["0-4", "5-9", "10-14", "15-19", "20+"],
         right=False
     )
-    return result["attempted_group"].value_counts().sort_index().to_dict()
+    comp_passes["buckets"] = pd.cut(
+        comp_passes["yards_gained"],
+        bins=[-np.inf, 5, 10, 15, 20, np.inf],
+        labels=["0-4", "5-9", "10-14", "15-19", "20+"],
+        right=False
+    )
+    incomp_passes["buckets"] = pd.cut(
+        incomp_passes["air_yards"],
+        bins=[-np.inf, 5, 10, 15, 20, np.inf],
+        labels=["0-4", "5-9", "10-14", "15-19", "20+"],
+        right=False
+    )
+    breakdown = {"a_group": convert_group_to_dict(passes["buckets"]),
+                 "c_group": convert_group_to_dict(comp_passes["buckets"]),
+                 "ic_group": convert_group_to_dict(incomp_passes["buckets"])
+                 }
+    return breakdown
 
-
+def convert_group_to_dict(group):
+    return group.value_counts().sort_index().to_dict()
 
 def get_rb_season_summary(season, name):
     result = get_player_involved_plays(season, name)
@@ -57,16 +80,23 @@ def get_rb_season_summary(season, name):
 
     pass_plays = result[result["play_type"] == "pass"]
     num_p_attempts = len(pass_plays)
-    comp_passes = pass_plays[pass_plays["complete_pass"] == 1]
-    yardage_bd = get_rb_yardage_bd(comp_passes)
 
+    comp_passes = pass_plays[pass_plays["complete_pass"] == 1]
     num_comp_p = len(comp_passes)
     total_p_yds = comp_passes["yards_gained"].sum()
+    # Average yards per "completed" pass
+    avg_ypp = round(comp_passes["yards_gained"].mean(), 2)
+
     incomp_passes = pass_plays[pass_plays["incomplete_pass"] == 1]
     num_incomp_p = len(incomp_passes)
     perc_comp = round((num_comp_p/num_p_attempts) * 100, 1)
-    # Average yards per "completed" pass
-    avg_ypp = round(comp_passes["yards_gained"].mean(), 2)
+
+    
+
+    yardage_bd = get_rb_yardage_bd(pass_plays, comp_passes, 
+                                   incomp_passes, run_plays)
+
+
     return {"season": season,
             "name": name, 
             "num_r_attempts": num_r_attempts,
