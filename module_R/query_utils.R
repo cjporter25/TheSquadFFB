@@ -307,7 +307,7 @@ season_passing_yardage_bd <- function(conn, season, team_abbr) {
     tally(sort = TRUE) %>%
     # When n = 1, for each bucket, pick the single receiver with the
     #   highest number of receptions. When n = 2, the top two, etc.
-    slice_max(n, n = 2) %>%
+    slice_max(n, n = 1) %>%
     # Remove grouping logic just in case
     ungroup()
 
@@ -408,6 +408,8 @@ get_season_off_summ <- function(main_conn, team_conn, season, team_abbr) {
   num_r_attempted <- nrow(runs)
   total_r_yds <- sum(runs$yards_gained, na.rm = TRUE)
   list(
+    team_abbr = team_abbr,
+    season = season,
     num_p_attempted = num_p_attempted,
     attempted_group = table(pass_dists$attempted_group),
     num_comp_p = num_comp_p,
@@ -423,6 +425,70 @@ get_season_off_summ <- function(main_conn, team_conn, season, team_abbr) {
     num_r_for_loss = num_r_for_loss,
     total_r_loss = total_r_loss
   )
+}
+
+save_team_off_summ <- function(summ, ss_conn) {
+  season <- summ$season
+  team_abbr <- summ$team_abbr
+  table_name <- paste0(season, "_ts")
+
+  # Grab only non-table values for now
+  single_vals <- summ[sapply(summ, function(x) length(x) == 1)]
+  single_vals$season <- as.character(single_vals$season)
+
+  # Create one row data frame from incoming table to insert into db
+  df <- as.data.frame(single_vals, optional = TRUE)
+
+  # Append or create table to account for initial edge case
+  if (!DBI::dbExistsTable(ss_conn, table_name)) {
+    message("creating new table")
+    DBI::dbWriteTable(ss_conn, table_name, df, overwrite = FALSE)
+  } else {
+    # If table already exists, check for whether the team was already added
+    existing_team <- DBI::dbGetQuery(
+      ss_conn,
+      # Apparently need to quote the table_name cause SQL doesn't
+      #   like it starting with a number
+      paste0('SELECT 1 FROM "', table_name, '" WHERE team_abbr = ? LIMIT 1'),
+      params = list(team_abbr)
+    )
+    # If query result is empty, it's nrow size will be zero
+    if (nrow(existing_team) > 0) {
+      # Check whether we're working with current season
+      if (season == 2025) {
+        # Overwrite row to account for potential new data
+        DBI::dbExecute(
+          ss_conn,
+          paste0('DELETE FROM "', table_name, '" WHERE team_abbr = ?'),
+          params = list(team_abbr)
+        )
+        DBI::dbWriteTable(ss_conn, table_name, df, append = TRUE)
+        message("🔄 Refreshing data for: ", team_abbr)
+      } else {
+        message("Skipped (already exists): ", team_abbr)
+      }
+    } else {
+      DBI::dbWriteTable(ss_conn, table_name, df, append = TRUE)
+      message("✅ Appended new row: ", team_abbr)
+    }
+  }
+}
+
+save_team_summs <- function(main_conn, team_conn, ss_conn, json_path) {
+  if (!file.exists(json_path)) {
+    stop("app_data.json not found.")
+  }
+  app_data <- jsonlite::fromJSON(json_path)
+  seasons <- 2002:2025
+  for (season in seasons) {
+    key <- paste0("teams_", season)
+    teams <- app_data[[key]]
+    for (team in teams) {
+      summ <- get_season_off_summ(main_conn, team_conn, season, team)
+      save_team_off_summ(summ, ss_conn)
+      cat("✅ ", season, "", team, "summary saved to nfl_team_ss.db\n")
+    }
+  }
 }
 
 # Print a team's season summary of calculated stats for visualizing primary
