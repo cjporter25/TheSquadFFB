@@ -18,7 +18,7 @@ load_and_save_pbp_seasons(main_conn)
 # === Load in and save all team abbr to app_data.json ===
 update_team_list_json(main_conn, json_path)
 # === Create and save pbp based on specific teams in new db ===
-save_team_pbps(main_conn, team_conn, json_path)
+save_new_team_pbps(main_conn, team_conn, json_path, "2025")
 # === Audit team pbps to remove duplicates and NA values ===
 audit_team_pbp_db(team_conn)
 # === Calculate and save team summaries for every season ===

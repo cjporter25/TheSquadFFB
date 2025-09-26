@@ -14,3 +14,4 @@ result = get_rb_season_summary(2024, "T.Tracy")
 print_rb_season_summary(result)
 
 result = get_rb_season_summary(2024, "T.Etienne")
+print_rb_season_summary(result)

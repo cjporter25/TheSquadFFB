@@ -60,9 +60,16 @@ def get_rb_yardage_bd(passes, comp_passes, incomp_passes, runs):
         labels=["0-4", "5-9", "10-14", "15-19", "20+"],
         right=False
     )
+    runs["buckets"] = pd.cut(
+        runs["yards_gained"],
+        bins=[-np.inf, 5, 10, 15, 20, np.inf],
+        labels=["0-4", "5-9", "10-14", "15-19", "20+"],
+        right=False
+    )
     breakdown = {"a_group": convert_group_to_dict(passes["buckets"]),
                  "c_group": convert_group_to_dict(comp_passes["buckets"]),
-                 "ic_group": convert_group_to_dict(incomp_passes["buckets"])
+                 "ic_group": convert_group_to_dict(incomp_passes["buckets"]),
+                 "r_group": convert_group_to_dict(runs["buckets"])
                  }
     return breakdown
 
