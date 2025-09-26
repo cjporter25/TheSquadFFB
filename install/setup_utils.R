@@ -180,6 +180,24 @@ save_team_summs <- function(main_conn, team_conn, ss_conn, json_path) {
   }
 }
 
+# Iterate through each season's team list and calculate summaries
+save_team_summs_new <- function(main_conn, team_conn, ss_conn, json_path) {
+  if (!file.exists(json_path)) {
+    stop("app_data.json not found.")
+  }
+  app_data <- jsonlite::fromJSON(json_path)
+  seasons <- 2025:2025
+  for (season in seasons) {
+    key <- paste0("teams_", season)
+    teams <- app_data[[key]]
+    for (team in teams) {
+      summ <- get_season_off_summ(main_conn, team_conn, season, team)
+      save_team_off_summ(summ, ss_conn)
+      cat("✅ ", season, "", team, "summary saved to nfl_team_ss.db\n")
+    }
+  }
+}
+
 # Gather and save specific team season summary
 save_team_off_summ <- function(summ, ss_conn) {
   season <- summ$season

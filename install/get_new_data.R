@@ -22,7 +22,7 @@ save_new_team_pbps(main_conn, team_conn, json_path, "2025")
 # === Audit team pbps to remove duplicates and NA values ===
 audit_team_pbp_db(team_conn)
 # === Calculate and save team summaries for every season ===
-save_team_summs(main_conn, team_conn, ss_conn, json_path)
+save_team_summs_new(main_conn, team_conn, ss_conn, json_path)
 # === Audit summary to ensure there's no duplicate rows ===
 audit_ss_db(ss_conn)
 
