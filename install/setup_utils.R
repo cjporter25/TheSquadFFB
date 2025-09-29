@@ -274,7 +274,7 @@ get_season_off_summ <- function(main_conn, team_conn, season, team_abbr) {
 
   perc_comp_p <- round((num_comp_p / num_p_attempted) * 100, 1)
 
-  pass_dists <- season_passing_yardage_bd(main_conn, season, team_abbr)
+  pass_dists <- get_passing_yardage_bd(main_conn, season, team_abbr)
 
   # All designed run plays
   runs <- subset(result, result$play_type == "run"
@@ -309,9 +309,13 @@ get_season_off_summ <- function(main_conn, team_conn, season, team_abbr) {
     total_r_loss = total_r_loss
   )
 }
-season_passing_yardage_bd <- function(conn, season, team_abbr) {
+get_passing_yardage_bd <- function(conn, season, team_abbr, poss_flag) {
 
-  result <- season_get_all_passes(conn, season, team_abbr)
+  if (poss_flag == 1) {
+    result <- season_get_all_passes_off(conn, season, team_abbr)
+  } else {
+    result <- season_get_all_passes_def(conn, season, team_abbr)
+  }
 
   # === Combine Yardage Values Based on Completion Status ===
   result$attempted_yards <- ifelse(
@@ -404,7 +408,7 @@ season_passing_yardage_bd <- function(conn, season, team_abbr) {
 }
 
 # Retrieve specific set of passing plays for yardage breakdown
-season_get_all_passes <- function(conn, season, team_abbr) {
+season_get_all_passes_off <- function(conn, season, team_abbr) {
   table_name <- paste0("pbp_", season)
   query <- sprintf(
     "SELECT game_id, posteam, play_type, yards_gained,
@@ -412,6 +416,21 @@ season_get_all_passes <- function(conn, season, team_abbr) {
     receiver_player_name, receiving_yards, yards_after_catch,
     complete_pass, incomplete_pass
     FROM %s WHERE posteam = '%s' AND play_type = 'pass'",
+    table_name, team_abbr
+  )
+
+  result <- dbGetQuery(conn, query)
+  result
+}
+# Retrieve specific set of passing plays for yardage breakdown
+season_get_all_passes_def <- function(conn, season, team_abbr) {
+  table_name <- paste0("pbp_", season)
+  query <- sprintf(
+    "SELECT game_id, defteam, play_type, yards_gained,
+    passer_player_name, passing_yards, air_yards,
+    receiver_player_name, receiving_yards, yards_after_catch,
+    complete_pass, incomplete_pass
+    FROM %s WHERE defteam = '%s' AND play_type = 'pass'",
     table_name, team_abbr
   )
 

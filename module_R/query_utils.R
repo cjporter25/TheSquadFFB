@@ -7,8 +7,6 @@ suppressPackageStartupMessages(library(dplyr))
 
 assign("JSON_PATH", "app_data.json", envir = .GlobalEnv)
 
-
-
 # Standard pull of season pass attempts based on team
 season_total_passes <- function(conn, season, team_abbr) {
   table_name <- paste0("pbp_", season)
@@ -20,7 +18,7 @@ season_total_passes <- function(conn, season, team_abbr) {
   result[[1]]
 }
 
-season_get_all_passes <- function(conn, season, team_abbr) {
+season_get_all_passes_off <- function(conn, season, team_abbr) {
   table_name <- paste0("pbp_", season)
   query <- sprintf(
     "SELECT game_id, posteam, play_type, yards_gained,
@@ -28,6 +26,21 @@ season_get_all_passes <- function(conn, season, team_abbr) {
     receiver_player_name, receiving_yards, yards_after_catch,
     complete_pass, incomplete_pass
     FROM %s WHERE posteam = '%s' AND play_type = 'pass'",
+    table_name, team_abbr
+  )
+
+  result <- dbGetQuery(conn, query)
+  result
+}
+
+season_get_all_passes_def <- function(conn, season, team_abbr) {
+  table_name <- paste0("pbp_", season)
+  query <- sprintf(
+    "SELECT game_id, defteam, play_type, yards_gained,
+    passer_player_name, passing_yards, air_yards,
+    receiver_player_name, receiving_yards, yards_after_catch,
+    complete_pass, incomplete_pass
+    FROM %s WHERE defteam = '%s' AND play_type = 'pass'",
     table_name, team_abbr
   )
 
@@ -92,11 +105,11 @@ season_total_incomplete_passes <- function(conn, season, team_abbr) {
 
 # Retrieve a list of game_ids for every time two teams have played each other
 get_historical_matches <- function(conn, num_years, team_one, team_two) {
-  curr_year <- 2024
+  curr_year <- 2025
   matches_df <- list()
   matches_list <- c() # Empty character vector (for final list)
 
-  for (i in 0:(num_years - 1)) {
+  for (i in 0:(num_years)) {
     season <- curr_year - i
     table_name <- paste0("pbp_", season)
     validate_input(season, team_one, JSON_PATH)
@@ -130,7 +143,7 @@ get_historical_match_stats <- function(conn, num_years, team_one, team_two) {
   for (game_id in matches){
     table_name <- paste0("pbp_", substr(game_id, 1, 4))
     query <- sprintf(
-      "SELECT game_id, posteam, play_type, yards_gained,
+      "SELECT game_id, game_date, posteam, play_type, yards_gained,
       rusher_player_name, rushing_yards, rush_attempt,
       passer_player_name, passing_yards, air_yards, pass_location,
       receiver_player_name, receiving_yards, yards_after_catch,
@@ -140,9 +153,10 @@ get_historical_match_stats <- function(conn, num_years, team_one, team_two) {
       table_name, game_id
     )
     result <- dbGetQuery(conn, query)
-    message("     #####################")
-    cat("     # ", game_id, " #\n")
-    message("     #####################")
+    date <- result$game_date[1]
+    message("\n##################################")
+    cat("# ", game_id, "(", date, ") #\n")
+    message("##################################")
     team_one_passes <- result %>%
       filter(.data$posteam == team_one, .data$play_type == "pass")
     team_one_runs <- result %>%
@@ -157,7 +171,8 @@ get_historical_match_stats <- function(conn, num_years, team_one, team_two) {
     t_two_p <- calc_match_pass_stats(team_two_passes)
     t_two_r <- calc_match_run_stats(team_two_runs)
 
-    print_side_by_side(team_one, t_one_p, t_one_r, team_two, t_two_p, t_two_r)
+    print_side_by_side(team_one, t_one_p, t_one_r,
+                       team_two, t_two_p, t_two_r)
   }
 }
 
@@ -241,9 +256,13 @@ print_side_by_side <- function(team_one_abbr, t_one_p, t_one_r,
 
 }
 
-season_passing_yardage_bd <- function(conn, season, team_abbr) {
+get_passing_yardage_bd <- function(conn, season, team_abbr, poss_flag) {
 
-  result <- season_get_all_passes(conn, season, team_abbr)
+  if (poss_flag == 1) {
+    result <- season_get_all_passes_off(conn, season, team_abbr)
+  } else {
+    result <- season_get_all_passes_def(conn, season, team_abbr)
+  }
 
   # === Combine Yardage Values Based on Completion Status ===
   result$attempted_yards <- ifelse(
@@ -321,7 +340,7 @@ season_passing_yardage_bd <- function(conn, season, team_abbr) {
     tally(sort = TRUE) %>%
     # When n = 1, for each bucket, pick the single receiver with the
     #   highest number of receptions. When n = 2, the top two, etc.
-    slice_max(n, n = 1) %>%
+    slice_max(n, n = 2) %>%
     # Remove grouping logic just in case
     ungroup()
 
@@ -337,7 +356,7 @@ season_passing_yardage_bd <- function(conn, season, team_abbr) {
 
 season_favorite_rec_targets <- function(conn, season, team_abbr) {
 
-  result <- season_get_all_passes(conn, season, team_abbr)
+  result <- season_get_all_passes_off(conn, season, team_abbr)
   # Filter out rows with NA receiver names (just in case)
   result <- result[!is.na(result$receiver_player_name), ]
   # Count # of times a receiver shows up
@@ -351,20 +370,67 @@ season_favorite_rec_targets <- function(conn, season, team_abbr) {
   as_tibble(top_targets)
 }
 
-
-print_game_df <- function(conn, season, team_abbr, game_id) {
-  table_name <- paste0("pbp_", season)
+get_season_def_summ <- function(main_conn, team_conn, season, team_abbr) {
+  table_name <- paste0(team_abbr, "_pbp")
   query <- sprintf(
-    "SELECT game_id, posteam, play_type, yards_gained,
-    passer_player_name, passing_yards, air_yards, pass_location,
+    "SELECT game_id, posteam, defteam, play_type, yards_gained,
+    rusher_player_name, rushing_yards, rush_attempt, qb_scramble,
+    passer_player_name, passing_yards, air_yards,
     receiver_player_name, receiving_yards, yards_after_catch,
     complete_pass, incomplete_pass
-    FROM %s
-    WHERE posteam = '%s' AND play_type = 'pass' AND game_id = '%s'",
-    table_name, team_abbr, game_id
+    FROM %s WHERE season = '%s'",
+    table_name, season
   )
-  result <- dbGetQuery(conn, query)
-  print(result)
+  result <- dbGetQuery(team_conn, query)
+
+  # All designed PASSES where team is on DEF
+  passes <- subset(result, result$play_type == "pass"
+                   & result$defteam == team_abbr)
+  num_p_attempted <- nrow(passes)
+  comp_p <- subset(passes, passes$complete_pass == 1)
+  num_comp_p <- nrow(comp_p)
+  total_comp_p_yds <- sum(comp_p$yards_gained, na.rm = TRUE)
+
+  incomp_p <- subset(passes, passes$incomplete_pass == 1)
+  num_incomp_p <- nrow(incomp_p)
+
+  perc_comp_p <- round((num_comp_p / num_p_attempted) * 100, 1)
+
+  runs <- subset(result, result$play_type == "run"
+                 & result$defteam == team_abbr)
+
+  # All designed RUNS where team is on DEF
+  r_for_gain <- subset(runs, runs$yards_gained > 0)
+  num_r_for_gain <- nrow(r_for_gain)
+  total_r_gain <- sum(r_for_gain$yards_gained, na.rm = TRUE)
+
+  r_for_loss <- subset(runs, runs$yards_gained < 0)
+  num_r_for_loss <- nrow(r_for_loss)
+  total_r_loss <- sum(r_for_loss$yards_gained, na.rm = TRUE)
+
+  num_r_attempted <- nrow(runs)
+  total_r_yds <- sum(runs$yards_gained, na.rm = TRUE)
+
+  pass_dists <- get_passing_yardage_bd(main_conn, season, team_abbr, 0)
+
+  list(
+    team_abbr = team_abbr,
+    season = season,
+    num_p_attempted = num_p_attempted,
+    attempted_group = table(pass_dists$attempted_group),
+    num_comp_p = num_comp_p,
+    comp_group = table(pass_dists$completed_passes$yardage_group),
+    num_incomp_p = num_incomp_p,
+    total_comp_p_yds = total_comp_p_yds,
+    incomp_group = table(pass_dists$incomplete_passes$yardage_group),
+    perc_comp_p = perc_comp_p,
+    num_r_attempted = num_r_attempted,
+    total_r_yds = total_r_yds,
+    num_r_for_gain = num_r_for_gain,
+    total_r_gain = total_r_gain,
+    num_r_for_loss = num_r_for_loss,
+    total_r_loss = total_r_loss
+  )
 }
 
 get_season_off_summ <- function(main_conn, team_conn, season, team_abbr) {
@@ -394,7 +460,7 @@ get_season_off_summ <- function(main_conn, team_conn, season, team_abbr) {
 
   perc_comp_p <- round((num_comp_p / num_p_attempted) * 100, 1)
 
-  pass_dists <- season_passing_yardage_bd(main_conn, season, team_abbr)
+  pass_dists <- get_passing_yardage_bd(main_conn, season, team_abbr, 1)
 
   # All designed run plays
   runs <- subset(result, result$play_type == "run"
@@ -433,7 +499,7 @@ get_season_off_summ <- function(main_conn, team_conn, season, team_abbr) {
 # Print a team's season summary of calculated stats for visualizing primary
 #   targets, percentages, etc.
 # Output visuals will increase over time
-print_season_summary <- function(conn, season, team_abbr, json_path) {
+print_season_off_summary <- function(conn, season, team_abbr, json_path) {
 
   if (!(validate_input(season, team_abbr, json_path))) {
     stop("Unable to print team summary, issue with input ^")
@@ -445,7 +511,7 @@ print_season_summary <- function(conn, season, team_abbr, json_path) {
   # Only affects internal numeric precision, not what can be printed
   perc_completed_passes <- round((num_comp_passes / num_passes), 2)
   num_runs <- season_total_runs(conn, season, team_abbr)
-  pass_dists <- season_passing_yardage_bd(conn, season, team_abbr)
+  pass_dists <- get_passing_yardage_bd(conn, season, team_abbr, 1)
   fav_rec_targets <- season_favorite_rec_targets(conn, season, team_abbr)
 
   cat(sprintf("Team %s (%d):\n", team_abbr, season)
@@ -477,6 +543,7 @@ print_season_summary <- function(conn, season, team_abbr, json_path) {
         "\n| Player:", pass_dists$top_receivers$receiver_player_name[i],
         "\n| Completions:", pass_dists$top_receivers$n[i], "\n")
   }
+  # print(pass_dists$top_receivers)
   cat("\nFavorite Pass Targets (", season, ") :\n")
   print(fav_rec_targets)
   cat("\n#1 Target (", season, "): ",
@@ -490,7 +557,7 @@ print_every_season_summary <- function(conn, team_abbr, seasons = 2002:2024) {
 
     if (table_name %in% dbListTables(conn)) {
       message(paste0("Season: ", season))
-      print_season_summary(conn, season, team_abbr)
+      print_season_off_summary(conn, season, team_abbr)
       cat("\n------------------------\n")
     } else {
       message(paste0("ERROR - Table for season ", season, " not found."))
@@ -520,9 +587,24 @@ print_all_team_summaries <- function(conn, season, json_path) {
 
   # Loop through each team and print the summary
   for (team in teams) {
-    print_season_summary(conn, season, team)
+    print_season_off_summary(conn, season, team)
     cat("\n---------------------------\n")
   }
+}
+
+print_game_df <- function(conn, season, team_abbr, game_id) {
+  table_name <- paste0("pbp_", season)
+  query <- sprintf(
+    "SELECT game_id, posteam, play_type, yards_gained,
+    passer_player_name, passing_yards, air_yards, pass_location,
+    receiver_player_name, receiving_yards, yards_after_catch,
+    complete_pass, incomplete_pass
+    FROM %s
+    WHERE posteam = '%s' AND play_type = 'pass' AND game_id = '%s'",
+    table_name, team_abbr, game_id
+  )
+  result <- dbGetQuery(conn, query)
+  print(result)
 }
 
 validate_input <- function(season, team_abbr, json_path) {

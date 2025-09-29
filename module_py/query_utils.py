@@ -80,9 +80,6 @@ def get_rb_yardage_bd(runs, passes, comp_passes, incomp_passes):
                  }
     return breakdown
 
-def convert_group_to_dict(group):
-    return group.value_counts().sort_index().to_dict()
-
 def get_rb_season_summary(season, team_abbr, name):
     result = get_player_involved_plays(season, team_abbr, name)
     
@@ -104,8 +101,6 @@ def get_rb_season_summary(season, team_abbr, name):
     incomp_passes = pass_plays[pass_plays["incomplete_pass"] == 1]
     num_incomp_p = len(incomp_passes)
     perc_comp = round((num_comp_p/num_p_attempts) * 100, 1)
-
-    
 
     yardage_bd = get_rb_yardage_bd(run_plays, pass_plays, 
                                    comp_passes, incomp_passes)
@@ -141,11 +136,13 @@ def print_rb_season_summary(p_stats):
     print("Num Incomp Passes: " + str(p_stats["num_incomp_p"]))
     print(" Perc P Completed: " + str(p_stats["perc_comp"]) + "%")
     print(p_stats["yardage_bd"])
-    print(p_stats["r_group"])
-    print(p_stats["a_group"])
-    print(p_stats["c_group"])
-    print(p_stats["ic_group"])
+    print(" r_group: ", p_stats["r_group"])
+    print(" a_group: ", p_stats["a_group"])
+    print(" c_group: ", p_stats["c_group"])
+    print("ic_group: ", p_stats["ic_group"])
 
+def convert_group_to_dict(group):
+    return group.value_counts().sort_index().to_dict()
 
 
 

@@ -9,9 +9,18 @@ from query_utils import *
 subprocess.run(["Rscript", "module_R/main.R"], check=True)
 
 
-result = get_rb_season_summary(2024, "NYG", "T.Tracy")
+#result = get_rb_season_summary(2024, "NYG", "T.Tracy")
 # [num_r_attempts, avg_ypc, num_p_attempts, num_comp_p, num_incomp_p, avg_ypp]
+#print_rb_season_summary(result)
+
+#result = get_rb_season_summary(2024, "JAX", "T.Etienne")
+#print_rb_season_summary(result)
+
+# result = get_rb_season_summary(2025, "JAX", "T.Etienne")
+# print_rb_season_summary(result)
+
+result = get_rb_season_summary(2025, "GB", "R.Doubs")
 print_rb_season_summary(result)
 
-result = get_rb_season_summary(2024, "JAX", "T.Etienne")
+result = get_rb_season_summary(2025, "GB", "T.Kraft")
 print_rb_season_summary(result)
