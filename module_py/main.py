@@ -19,8 +19,11 @@ subprocess.run(["Rscript", "module_R/main.R"], check=True)
 # result = get_rb_season_summary(2025, "JAX", "T.Etienne")
 # print_rb_season_summary(result)
 
-result = get_rb_season_summary(2025, "GB", "R.Doubs")
-print_rb_season_summary(result)
+# result = get_rb_season_summary(2025, "GB", "R.Doubs")
+# print_rb_season_summary(result)
 
 result = get_rb_season_summary(2025, "GB", "T.Kraft")
 print_rb_season_summary(result)
+
+# result = get_team_season_summary(2024, "GB")
+# print(result)

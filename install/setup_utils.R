@@ -274,7 +274,7 @@ get_season_off_summ <- function(main_conn, team_conn, season, team_abbr) {
 
   perc_comp_p <- round((num_comp_p / num_p_attempted) * 100, 1)
 
-  pass_dists <- get_passing_yardage_bd(main_conn, season, team_abbr)
+  pass_dists <- get_passing_yardage_bd(main_conn, season, team_abbr, 1)
 
   # All designed run plays
   runs <- subset(result, result$play_type == "run"

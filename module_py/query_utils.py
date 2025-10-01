@@ -32,6 +32,16 @@ def get_player_involved_plays(season, team_abbr, name):
     result = pd.read_sql_query(query, TEAM_CONN, params=[season, name, name])
     return result
 
+def get_team_season_summary(season, team_abbr):
+    table = str(season) + "_ts"
+    query = f"""
+        SELECT *
+        FROM "{table}"
+        WHERE team_abbr = ?
+    """
+    result = pd.read_sql_query(query, SS_CONN, params=[team_abbr])
+    return result
+
 def get_rb_yardage_bd(runs, passes, comp_passes, incomp_passes):
     # Have to create a deep copy because the incoming data frame
     #   is a visual slice of the original big query, not a copy
@@ -83,7 +93,6 @@ def get_rb_yardage_bd(runs, passes, comp_passes, incomp_passes):
 def get_rb_season_summary(season, team_abbr, name):
     result = get_player_involved_plays(season, team_abbr, name)
     
-
     run_plays = result[result["play_type"] == "run"]
     num_r_attempts = len(run_plays)
     total_r_yds = run_plays["yards_gained"].sum()
@@ -104,6 +113,12 @@ def get_rb_season_summary(season, team_abbr, name):
 
     yardage_bd = get_rb_yardage_bd(run_plays, pass_plays, 
                                    comp_passes, incomp_passes)
+    
+    team_summ = get_team_season_summary(season, team_abbr)
+    a_pass_share = round((num_p_attempts / team_summ["num_p_attempted"])*100, 1)
+    print(team_summ["num_p_attempted"])
+    print(a_pass_share)
+    print(a_pass_share[0])
 
     return {"season": season,
             "name": name, 
@@ -112,6 +127,7 @@ def get_rb_season_summary(season, team_abbr, name):
             "total_r_yds": total_r_yds, 
             "avg_ypc": avg_ypc, 
             "num_p_attempts": num_p_attempts,
+            "a_pass_share": a_pass_share[0],
             "a_group": yardage_bd["a_group"],
             "total_p_yds" : total_p_yds,
             "num_comp_p": num_comp_p,
@@ -131,7 +147,7 @@ def print_rb_season_summary(p_stats):
     print("      Average YPC: " + str(p_stats["avg_ypc"]))
     print("Total Attempted P: " + str(p_stats["num_p_attempts"]))
     print("      Total P Yds: " + str(p_stats["total_p_yds"]))
-    print("Pass Target Share: " + "PLACEHOLDER")
+    print("Pass Target Share: " + str(p_stats["a_pass_share"]) + "%")
     print("  Num Comp Passes: " + str(p_stats["num_comp_p"]))
     print("Num Incomp Passes: " + str(p_stats["num_incomp_p"]))
     print(" Perc P Completed: " + str(p_stats["perc_comp"]) + "%")
