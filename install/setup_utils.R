@@ -138,6 +138,8 @@ save_new_team_pbps <- function(main_conn, team_conn, app_data_path, curr_year) {
     for (team in team_seasons[[season]]) {
       cat("Processing", team, "for season", year, "\n")
 
+      # For each team abbr in the list, find all plays where there were on OFF,
+      #   DEF, or the game_id has them in the name (redundancy check)
       query <- sprintf(
         "SELECT *
         FROM %s
@@ -181,6 +183,7 @@ save_team_summs <- function(main_conn, team_conn, ss_conn, json_path) {
 }
 
 # Iterate through each season's team list and calculate summaries
+# ONLY 2025
 save_team_summs_new <- function(main_conn, team_conn, ss_conn, json_path) {
   if (!file.exists(json_path)) {
     stop("app_data.json not found.")
@@ -211,7 +214,8 @@ save_team_off_summ <- function(summ, ss_conn) {
   # Create one row data frame from incoming table to insert into db
   df <- as.data.frame(single_vals, optional = TRUE)
 
-  # Append or create table to account for initial edge case
+  # Append or create table to account for initial edge case where table isn't
+  #   yet present
   if (!DBI::dbExistsTable(ss_conn, table_name)) {
     message("creating new table")
     DBI::dbWriteTable(ss_conn, table_name, df, overwrite = FALSE)
@@ -407,7 +411,7 @@ get_passing_yardage_bd <- function(conn, season, team_abbr, poss_flag) {
   )
 }
 
-# Retrieve specific set of passing plays for yardage breakdown
+# Retrieve set of plays where team is on OFFENSE
 season_get_all_passes_off <- function(conn, season, team_abbr) {
   table_name <- paste0("pbp_", season)
   query <- sprintf(
@@ -422,7 +426,7 @@ season_get_all_passes_off <- function(conn, season, team_abbr) {
   result <- dbGetQuery(conn, query)
   result
 }
-# Retrieve specific set of passing plays for yardage breakdown
+# Retrieve set of plays where team is on DEFENCE
 season_get_all_passes_def <- function(conn, season, team_abbr) {
   table_name <- paste0("pbp_", season)
   query <- sprintf(

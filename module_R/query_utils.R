@@ -340,13 +340,13 @@ get_passing_yardage_bd <- function(conn, season, team_abbr, poss_flag) {
     tally(sort = TRUE) %>%
     # When n = 1, for each bucket, pick the single receiver with the
     #   highest number of receptions. When n = 2, the top two, etc.
-    slice_max(n, n = 2) %>%
+    slice_max(n, n = 1) %>%
     # Remove grouping logic just in case
     ungroup()
 
   list(
     attempted_group = result$attempted_group,
-    py_prop = py_prop,
+    py_prop = py_prop, # Passing Yardage Propensity
     completed_passes = completed_passes,
     incomplete_passes = incomplete_passes,
     completion_rates = completion_rates,
@@ -413,17 +413,25 @@ get_season_def_summ <- function(main_conn, team_conn, season, team_abbr) {
 
   pass_dists <- get_passing_yardage_bd(main_conn, season, team_abbr, 0)
 
+  attempted_counts  <- table(pass_dists$attempted_group)
+  completed_counts  <- table(pass_dists$completed_passes$yardage_group)
+  incomplete_counts <- table(pass_dists$incomplete_passes$yardage_group)
+  comp_rates <- pass_dists$completion_rates  # named vector
+  py_prop <- pass_dists$py_prop
+
   list(
     team_abbr = team_abbr,
     season = season,
     num_p_attempted = num_p_attempted,
-    attempted_group = table(pass_dists$attempted_group),
+    attempted_group = attempted_counts,
     num_comp_p = num_comp_p,
-    comp_group = table(pass_dists$completed_passes$yardage_group),
+    comp_group = completed_counts,
     num_incomp_p = num_incomp_p,
     total_comp_p_yds = total_comp_p_yds,
-    incomp_group = table(pass_dists$incomplete_passes$yardage_group),
+    incomp_group = incomplete_counts,
     perc_comp_p = perc_comp_p,
+    pass_prop = py_prop,
+    comp_rate_group = comp_rates,
     num_r_attempted = num_r_attempted,
     total_r_yds = total_r_yds,
     num_r_for_gain = num_r_for_gain,
@@ -458,8 +466,6 @@ get_season_off_summ <- function(main_conn, team_conn, season, team_abbr) {
   incomp_p <- subset(passes, passes$incomplete_pass == 1)
   num_incomp_p <- nrow(incomp_p)
 
-  perc_comp_p <- round((num_comp_p / num_p_attempted) * 100, 1)
-
   pass_dists <- get_passing_yardage_bd(main_conn, season, team_abbr, 1)
 
   # All designed run plays
@@ -476,16 +482,22 @@ get_season_off_summ <- function(main_conn, team_conn, season, team_abbr) {
 
   num_r_attempted <- nrow(runs)
   total_r_yds <- sum(runs$yards_gained, na.rm = TRUE)
+
+  perc_comp_p <- round((num_comp_p / num_p_attempted) * 100, 1)
+  attempted_counts <- table(pass_dists$attempted_group)
+  completed_counts <- table(pass_dists$completed_passes$yardage_group)
+  incomplete_counts <- table(pass_dists$incomplete_passes$yardage_group)
+
   list(
     team_abbr = team_abbr,
     season = season,
     num_p_attempted = num_p_attempted,
-    attempted_group = table(pass_dists$attempted_group),
+    attempted_group = attempted_counts,
     num_comp_p = num_comp_p,
-    comp_group = table(pass_dists$completed_passes$yardage_group),
+    comp_group = completed_counts,
     num_incomp_p = num_incomp_p,
     total_comp_p_yds = total_comp_p_yds,
-    incomp_group = table(pass_dists$incomplete_passes$yardage_group),
+    incomp_group = incomplete_counts,
     perc_comp_p = perc_comp_p,
     num_r_attempted = num_r_attempted,
     total_r_yds = total_r_yds,

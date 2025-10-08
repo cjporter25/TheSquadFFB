@@ -2,6 +2,8 @@ import sqlite3
 import pandas as pd
 import numpy as np
 
+from utils import *
+
 MAIN_CONN = sqlite3.connect("nfl_pbp.db")
 TEAM_CONN = sqlite3.connect("nfl_team_pbp.db")
 SS_CONN = sqlite3.connect("nfl_team_ss.db")
@@ -109,20 +111,19 @@ def get_rb_season_summary(season, team_abbr, name):
 
     incomp_passes = pass_plays[pass_plays["incomplete_pass"] == 1]
     num_incomp_p = len(incomp_passes)
-    perc_comp = round((num_comp_p/num_p_attempts) * 100, 1)
+    perc_comp = calc_perc(num_comp_p, num_p_attempts)
 
     yardage_bd = get_rb_yardage_bd(run_plays, pass_plays, 
                                    comp_passes, incomp_passes)
     
     team_summ = get_team_season_summary(season, team_abbr)
-    a_pass_share = round((num_p_attempts / team_summ["num_p_attempted"])*100, 1)
-    print(team_summ["num_p_attempted"])
-    print(a_pass_share)
-    print(a_pass_share[0])
+    a_pass_share = calc_perc(num_p_attempts, team_summ["num_p_attempted"])
+    a_run_share = calc_perc(num_r_attempts, team_summ["num_r_attempted"])
 
     return {"season": season,
             "name": name, 
             "num_r_attempts": num_r_attempts,
+            "a_run_share": a_run_share[0],
             "r_group": yardage_bd["r_group"],
             "total_r_yds": total_r_yds, 
             "avg_ypc": avg_ypc, 
@@ -143,7 +144,7 @@ def print_rb_season_summary(p_stats):
     print("Total Attempted R: " + str(p_stats["num_r_attempts"]))
     print("      Total R Yds: " + str(p_stats["total_r_yds"]))
     # Total Team attempted runs/player attempted runs
-    print(" Run Target Share: " + "PLACEHOLDER")
+    print(" Run Target Share: " + str(p_stats["a_run_share"]) + "%")
     print("      Average YPC: " + str(p_stats["avg_ypc"]))
     print("Total Attempted P: " + str(p_stats["num_p_attempts"]))
     print("      Total P Yds: " + str(p_stats["total_p_yds"]))
@@ -151,7 +152,7 @@ def print_rb_season_summary(p_stats):
     print("  Num Comp Passes: " + str(p_stats["num_comp_p"]))
     print("Num Incomp Passes: " + str(p_stats["num_incomp_p"]))
     print(" Perc P Completed: " + str(p_stats["perc_comp"]) + "%")
-    print(p_stats["yardage_bd"])
+    # print(p_stats["yardage_bd"])
     print(" r_group: ", p_stats["r_group"])
     print(" a_group: ", p_stats["a_group"])
     print(" c_group: ", p_stats["c_group"])

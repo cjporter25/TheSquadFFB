@@ -1,8 +1,8 @@
 library(DBI)
 library(RSQLite)
 source("module_R/query_utils.R")
-source("install/setup_utils.R")
-source("install/audit_db.R")
+# source("install/setup_utils.R")
+# source("install/audit_db.R")
 # Use "source" when referencing other script files
 
 json_path <- "app_data.json"
@@ -12,11 +12,11 @@ ss_conn <- dbConnect(SQLite(), "nfl_team_ss.db")
 start <- Sys.time()
 #-------------------------------------------------------------#
 # get_season_def_summ(main_conn, team_conn, 2024, "DAL")
-get_season_def_summ(main_conn, team_conn, 2025, "DAL")
+get_season_def_summ(main_conn, team_conn, 2025, "SEA")
 # print_season_summary(main_conn, 2024, "MIN", json_path)
 # print_season_summary(main_conn, 2024, "GB", json_path)
 # print_season_off_summary(main_conn, 2024, "GB", json_path)
-print_season_off_summary(main_conn, 2025, "GB", json_path)
+# print_season_off_summary(main_conn, 2025, "GB", json_path)
 # get_historical_matches(main_conn, 5, "GB", "MIN")
 # get_historical_match_stats(main_conn, 10, "GB", "DAL")
 # RUN WHEN UPDATING 2025 STATS
