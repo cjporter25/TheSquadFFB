@@ -5,8 +5,38 @@ library(nflreadr)
 library(dplyr)
 
 # Load from 2002 since that has all of the current teams
-load_and_save_pbp_seasons <- function(conn, seasons = 2002:2025) {
+load_and_save_all_pbp <- function(conn, seasons = 2002:2025) {
   # Loop through seasons
+  for (year in seasons) {
+    table_name <- paste0("pbp_", year)
+
+    if (table_name %in% dbListTables(conn)) {
+      message(paste0("Skipping ", year, ": already exists in database."))
+      next
+    }
+
+    # Load the PBP data
+    message(paste0("Loading play-by-play data for ", year, "..."))
+    pbp <- load_pbp(year)
+    pbp$season <- year  # Add explicit season column
+
+    # Save to db
+    message(paste0("Writing to table: ", table_name))
+    dbWriteTable(conn, table_name, pbp, overwrite = TRUE)
+  }
+  message("✅ All missing seasons loaded and saved successfully.")
+}
+load_and_save_new_pbp <- function(conn, curr_year, seasons = 2002:2025) {
+  stopifnot(is.numeric(curr_year), length(curr_year) < 4)
+  table_to_refresh <- paste0("pbp_", curr_year)
+
+  if (table_to_refresh %in% dbListTables(conn)) {
+    message("Remove Existing Table: ", table_to_refresh)
+    dbRemoveTable(conn, table_to_refresh)
+  }
+
+  # Loop through all seasons just in case. Since curr_year is removed,
+  #   it will reload the pbp data for that year
   for (year in seasons) {
     table_name <- paste0("pbp_", year)
 
@@ -184,7 +214,7 @@ save_team_summs <- function(main_conn, team_conn, ss_conn, json_path) {
 
 # Iterate through each season's team list and calculate summaries
 # ONLY 2025
-save_team_summs_new <- function(main_conn, team_conn, ss_conn, json_path) {
+save_new_team_summs<- function(main_conn, team_conn, ss_conn, json_path) {
   if (!file.exists(json_path)) {
     stop("app_data.json not found.")
   }

@@ -14,7 +14,7 @@ team_conn <- dbConnect(SQLite(), team_db_path)
 ss_conn <- dbConnect(SQLite(), ss_db_path)
 
 # === Load in and save all plays to local nfl_pbp.db ===
-load_and_save_pbp_seasons(main_conn)
+load_and_save_all_pbp(main_conn)
 # === Load in and save all team abbr to app_data.json ===
 update_team_list_json(main_conn, json_path)
 # === Create and save pbp based on specific teams in new db ===

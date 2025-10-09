@@ -16,7 +16,7 @@ get_season_def_summ(main_conn, team_conn, 2025, "SEA")
 # print_season_summary(main_conn, 2024, "MIN", json_path)
 # print_season_summary(main_conn, 2024, "GB", json_path)
 # print_season_off_summary(main_conn, 2024, "GB", json_path)
-# print_season_off_summary(main_conn, 2025, "GB", json_path)
+print_season_off_summary(main_conn, 2025, "GB", json_path)
 # get_historical_matches(main_conn, 5, "GB", "MIN")
 # get_historical_match_stats(main_conn, 10, "GB", "DAL")
 # RUN WHEN UPDATING 2025 STATS
