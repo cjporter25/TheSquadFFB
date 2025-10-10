@@ -214,20 +214,19 @@ save_team_summs <- function(main_conn, team_conn, ss_conn, json_path) {
 
 # Iterate through each season's team list and calculate summaries
 # ONLY 2025
-save_new_team_summs<- function(main_conn, team_conn, ss_conn, json_path) {
+save_new_team_summs <- function(main_conn, team_conn, ss_conn, json_path) {
   if (!file.exists(json_path)) {
     stop("app_data.json not found.")
   }
   app_data <- jsonlite::fromJSON(json_path)
-  seasons <- 2025:2025
-  for (season in seasons) {
-    key <- paste0("teams_", season)
-    teams <- app_data[[key]]
-    for (team in teams) {
-      summ <- get_season_off_summ(main_conn, team_conn, season, team)
-      save_team_off_summ(summ, ss_conn)
-      cat("✅ ", season, "", team, "summary saved to nfl_team_ss.db\n")
-    }
+
+  season <- 2025
+  key <- paste0("teams_", season)
+  teams <- app_data[[key]]
+  for (team in teams) {
+    summ <- get_season_off_summ(main_conn, team_conn, season, team)
+    save_team_off_summ(summ, ss_conn)
+    cat("✅ ", season, "", team, "summary saved to nfl_team_ss.db\n")
   }
 }
 
@@ -305,6 +304,7 @@ get_season_off_summ <- function(main_conn, team_conn, season, team_abbr) {
 
   incomp_p <- subset(passes, passes$incomplete_pass == 1)
   num_incomp_p <- nrow(incomp_p)
+  total_incomp_p_yds <- sum(incomp_p$air_yards, na.rm = TRUE)
 
   perc_comp_p <- round((num_comp_p / num_p_attempted) * 100, 1)
 
@@ -324,17 +324,43 @@ get_season_off_summ <- function(main_conn, team_conn, season, team_abbr) {
 
   num_r_attempted <- nrow(runs)
   total_r_yds <- sum(runs$yards_gained, na.rm = TRUE)
-  list(
+
+  attempted_counts  <- table(pass_dists$attempted_group)
+  completed_counts  <- table(pass_dists$completed_passes$yardage_group)
+  incomplete_counts <- table(pass_dists$incomplete_passes$yardage_group)
+  comp_rates <- pass_dists$completion_rates  # named vector
+  py_prop <- pass_dists$py_prop
+
+  # This becomes the schema for each row in a summary table
+  summ <- list(
     team_abbr = team_abbr,
     season = season,
     num_p_attempted = num_p_attempted,
-    attempted_group = table(pass_dists$attempted_group),
+    off_att_0_4 = as.integer(attempted_counts[["0-4"]]),
+    off_att_5_9 = as.integer(attempted_counts[["5-9"]]),
+    off_att_10_14 = as.integer(attempted_counts[["10-14"]]),
+    off_att_15_19 = as.integer(attempted_counts[["15-19"]]),
+    off_att_20_plus = as.integer(attempted_counts[["20+"]]),
     num_comp_p = num_comp_p,
-    comp_group = table(pass_dists$completed_passes$yardage_group),
-    num_incomp_p = num_incomp_p,
+    off_comp_0_4 = as.integer(completed_counts[["0-4"]]),
+    off_comp_5_9 = as.integer(completed_counts[["5-9"]]),
+    off_comp_10_14 = as.integer(completed_counts[["10-14"]]),
+    off_comp_15_19 = as.integer(completed_counts[["15-19"]]),
+    off_comp_20_plus = as.integer(completed_counts[["20+"]]),
     total_comp_p_yds = total_comp_p_yds,
-    incomp_group = table(pass_dists$incomplete_passes$yardage_group),
+    off_incomp_0_4 = as.integer(incomplete_counts[["0-4"]]),
+    off_incomp_5_9 = as.integer(incomplete_counts[["5-9"]]),
+    off_incomp_10_14 = as.integer(incomplete_counts[["10-14"]]),
+    off_incomp_15_19 = as.integer(incomplete_counts[["15-19"]]),
+    off_incomp_20_plus = as.integer(incomplete_counts[["20+"]]),
+    num_incomp_p = num_incomp_p,
+    total_incomp_p_yds = total_incomp_p_yds,
     perc_comp_p = perc_comp_p,
+    attempted_group = attempted_counts,
+    comp_group = completed_counts,
+    incomp_group = incomplete_counts,
+    comp_rate_group = comp_rates,
+    prop_rate_group = py_prop,
     num_r_attempted = num_r_attempted,
     total_r_yds = total_r_yds,
     num_r_for_gain = num_r_for_gain,
@@ -342,6 +368,7 @@ get_season_off_summ <- function(main_conn, team_conn, season, team_abbr) {
     num_r_for_loss = num_r_for_loss,
     total_r_loss = total_r_loss
   )
+  summ
 }
 get_passing_yardage_bd <- function(conn, season, team_abbr, poss_flag) {
 

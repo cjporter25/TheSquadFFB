@@ -44,54 +44,6 @@ def get_team_season_summary(season, team_abbr):
     result = pd.read_sql_query(query, SS_CONN, params=[team_abbr])
     return result
 
-def get_rb_yardage_bd(runs, passes, comp_passes, incomp_passes):
-    # Have to create a deep copy because the incoming data frame
-    #   is a visual slice of the original big query, not a copy
-    runs = runs.copy()
-    passes = passes.copy()
-    comp_passes = comp_passes.copy()
-    incomp_passes = incomp_passes.copy()
-    
-
-    # Create new column in existing data frame to track attempted
-    #   yards regardless of completion
-    runs["buckets"] = pd.cut(
-        runs["yards_gained"],
-        bins=[-np.inf, 5, 10, 15, 20, np.inf],
-        labels=["0-4", "5-9", "10-14", "15-19", "20+"],
-        right=False
-    )
-    passes["attempted_yards"] = np.where(
-        passes["complete_pass"] == 1,
-        passes["yards_gained"],
-        passes["air_yards"]
-    )
-    passes["buckets"] = pd.cut(
-        passes["attempted_yards"],
-        bins=[-np.inf, 5, 10, 15, 20, np.inf],
-        labels=["0-4", "5-9", "10-14", "15-19", "20+"],
-        right=False
-    )
-    comp_passes["buckets"] = pd.cut(
-        comp_passes["yards_gained"],
-        bins=[-np.inf, 5, 10, 15, 20, np.inf],
-        labels=["0-4", "5-9", "10-14", "15-19", "20+"],
-        right=False
-    )
-    incomp_passes["buckets"] = pd.cut(
-        incomp_passes["air_yards"],
-        bins=[-np.inf, 5, 10, 15, 20, np.inf],
-        labels=["0-4", "5-9", "10-14", "15-19", "20+"],
-        right=False
-    )
-
-    breakdown = {"r_group": convert_group_to_dict(runs["buckets"]),
-                 "a_group": convert_group_to_dict(passes["buckets"]),
-                 "c_group": convert_group_to_dict(comp_passes["buckets"]),
-                 "ic_group": convert_group_to_dict(incomp_passes["buckets"]),
-                 }
-    return breakdown
-
 def get_rb_season_summary(season, team_abbr, name):
     result = get_player_involved_plays(season, team_abbr, name)
     
@@ -138,6 +90,53 @@ def get_rb_season_summary(season, team_abbr, name):
             "perc_comp": perc_comp,
             "avg_ypp": avg_ypp,
             "yardage_bd": yardage_bd}
+
+def get_rb_yardage_bd(runs, passes, comp_passes, incomp_passes):
+    # Have to create a deep copy because the incoming data frame
+    #   is a visual slice of the original big query, not a copy
+    runs = runs.copy()
+    passes = passes.copy()
+    comp_passes = comp_passes.copy()
+    incomp_passes = incomp_passes.copy()
+    
+    # Create new column in existing data frame to track attempted
+    #   yards regardless of completion
+    runs["buckets"] = pd.cut(
+        runs["yards_gained"],
+        bins=[-np.inf, 5, 10, 15, 20, np.inf],
+        labels=["0-4", "5-9", "10-14", "15-19", "20+"],
+        right=False
+    )
+    passes["attempted_yards"] = np.where(
+        passes["complete_pass"] == 1,
+        passes["yards_gained"],
+        passes["air_yards"]
+    )
+    passes["buckets"] = pd.cut(
+        passes["attempted_yards"],
+        bins=[-np.inf, 5, 10, 15, 20, np.inf],
+        labels=["0-4", "5-9", "10-14", "15-19", "20+"],
+        right=False
+    )
+    comp_passes["buckets"] = pd.cut(
+        comp_passes["yards_gained"],
+        bins=[-np.inf, 5, 10, 15, 20, np.inf],
+        labels=["0-4", "5-9", "10-14", "15-19", "20+"],
+        right=False
+    )
+    incomp_passes["buckets"] = pd.cut(
+        incomp_passes["air_yards"],
+        bins=[-np.inf, 5, 10, 15, 20, np.inf],
+        labels=["0-4", "5-9", "10-14", "15-19", "20+"],
+        right=False
+    )
+
+    breakdown = {"r_group": convert_group_to_dict(runs["buckets"]),
+                 "a_group": convert_group_to_dict(passes["buckets"]),
+                 "c_group": convert_group_to_dict(comp_passes["buckets"]),
+                 "ic_group": convert_group_to_dict(incomp_passes["buckets"]),
+                 }
+    return breakdown
 
 def print_rb_season_summary(p_stats):
     print("Player: " + p_stats["name"] + " (" + str(p_stats["season"]) + ") Summary")

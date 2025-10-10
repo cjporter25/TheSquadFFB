@@ -31,5 +31,8 @@ print_rb_season_summary(result)
 result = get_rb_season_summary(2025, "GB", "J.Jacobs")
 print_rb_season_summary(result)
 
+result = get_rb_season_summary(2025, "GB", "J.Love")
+print_rb_season_summary(result)
+
 # result = get_team_season_summary(2024, "GB")
 # print(result)
